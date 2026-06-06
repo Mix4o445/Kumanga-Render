@@ -1,0 +1,43 @@
+# Render Blueprint — Next.js web service + free Postgres.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploy: push this repo to GitHub, then in Render: New → Blueprint, pick the repo.
+# After the first deploy, run the one-off data import (see DEPLOY-RENDER.md):
+#   node scripts/import-json-to-pg.cjs   (with DATABASE_URL + DATABASE_SSL=true)
+
+databases:
+  - name: manga-db
+    plan: free
+    # Render free Postgres expires after a period — fine for hobby/testing.
+
+services:
+  - type: web
+    name: manga-platform
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start -- -p $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Internal connection string from the database above (no SSL needed).
+      - key: DATABASE_URL
+        fromDatabase:
+          name: manga-db
+          property: connectionString
+      # Internal connections don't use SSL.
+      - key: DATABASE_SSL
+        value: "false"
+      # Stable signing secret for sessions — generated once by Render.
+      - key: SESSION_SECRET
+        generateValue: true
+      # ── ImageKit (set these values in the Render dashboard) ──
+      - key: IMAGEKIT_PRIVATE_KEY
+        sync: false
+      - key: IMAGEKIT_PUBLIC_KEY
+        sync: false
+      - key: IMAGEKIT_URL_ENDPOINT
+        sync: false
+      - key: IMAGEKIT_FOLDER
+        value: manga-site

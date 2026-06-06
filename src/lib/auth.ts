@@ -14,9 +14,16 @@ import { userStore } from "@/lib/db/store";
 const COOKIE = "mr_session";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
-/* A persistent signing secret stored outside source control. */
+/* A persistent signing secret. In production (Render) the filesystem is
+ * ephemeral, so SESSION_SECRET must be supplied via env. Locally we fall back
+ * to a generated file under data/ for zero-config dev. */
 function getSecret(): string {
-  const dir = path.join(process.cwd(), "data");
+  const fromEnv = process.env.SESSION_SECRET;
+  if (fromEnv && fromEnv.length >= 16) return fromEnv;
+
+  const dir = process.env.DATA_DIR
+    ? path.resolve(process.env.DATA_DIR)
+    : path.join(process.cwd(), "data");
   const file = path.join(dir, ".session-secret");
   try {
     return fs.readFileSync(file, "utf8");
