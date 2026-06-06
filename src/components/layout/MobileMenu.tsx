@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -11,7 +12,13 @@ import { cn } from "@/lib/utils";
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+
+  // Portals require the DOM; only render them after mount.
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close on route change.
   useEffect(() => {
@@ -40,8 +47,10 @@ export function MobileMenu() {
         <Menu className="size-5" aria-hidden />
       </button>
 
-      <AnimatePresence>
-        {open ? (
+      {mounted
+        ? createPortal(
+            <AnimatePresence>
+              {open ? (
           <>
             <motion.div
               className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm lg:hidden"
@@ -120,8 +129,11 @@ export function MobileMenu() {
               </div>
             </motion.aside>
           </>
-        ) : null}
-      </AnimatePresence>
+              ) : null}
+            </AnimatePresence>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
