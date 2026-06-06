@@ -1,0 +1,103 @@
+// Prisma schema — the migration path to a real database.
+//
+// The app currently runs on the seeded repository in `src/lib/db`. To switch to
+// a real database with zero UI changes:
+//   1) npm i -D prisma && npm i @prisma/client
+//   2) set DATABASE_URL in .env
+//   3) npx prisma migrate dev --name init && npx prisma generate
+//   4) reimplement the functions in src/lib/db/index.ts using `prisma.*` queries
+//      (they already return the same typed shapes the UI expects).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Use "postgresql" / "mysql" in production; sqlite is great for local dev.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum MangaStatus {
+  ongoing
+  completed
+  hiatus
+  cancelled
+}
+
+enum AuthorRole {
+  author
+  artist
+  studio
+}
+
+model Genre {
+  id    String  @id @default(cuid())
+  slug  String  @unique
+  name  String
+  manga Manga[] @relation("MangaGenres")
+}
+
+model Author {
+  id    String     @id @default(cuid())
+  name  String
+  role  AuthorRole @default(author)
+  manga Manga[]
+}
+
+model Manga {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+  title         String
+  synopsis      String
+  coverImage    String
+  bannerImage   String?
+  status        MangaStatus @default(ongoing)
+  rating        Float       @default(0)
+  totalChapters Int         @default(0)
+  popularity    Int         @default(0)
+  views         Int         @default(0)
+  year          Int?
+  isFeatured    Boolean     @default(false)
+  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime    @default(now())
+
+  authorId String?
+  author   Author?  @relation(fields: [authorId], references: [id])
+  genres   Genre[]  @relation("MangaGenres")
+  chapters Chapter[]
+
+  @@index([popularity])
+  @@index([rating])
+  @@index([status])
+}
+
+model Chapter {
+  id         String   @id @default(cuid())
+  mangaId    String
+  manga      Manga    @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+  number     Float
+  title      String?
+  releasedAt DateTime @default(now())
+  pages      ChapterPage[]
+
+  @@unique([mangaId, number])
+  @@index([releasedAt])
+}
+
+// Page metadata only — the image bytes live in external storage (ImageKit).
+// The DB stores nothing but the page order and the generated CDN URL, which is
+// exactly how src/lib/storage.ts persists uploads today (as a string[] on the
+// JSON store). This model is the relational equivalent for the Postgres target.
+model ChapterPage {
+  id         String  @id @default(cuid())
+  chapterId  String
+  chapter    Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  pageNumber Int     // 1-based order within the chapter
+  imageUrl   String  // the ONLY thing stored — external storage URL
+  width      Int?
+  height     Int?
+
+  @@unique([chapterId, pageNumber])
+  @@index([chapterId, pageNumber])
+}

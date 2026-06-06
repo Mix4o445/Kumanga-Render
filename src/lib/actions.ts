@@ -1,0 +1,587 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import {
+  createSession,
+  createUser,
+  destroySession,
+  getCurrentUser,
+  verifyCredentials,
+} from "@/lib/auth";
+import {
+  addChapter,
+  chapterExists,
+  createManga,
+  getMangaBySlug,
+  setChapterReview,
+  setMangaReview,
+} from "@/lib/db";
+import { getCurrentAdmin, isAdmin } from "@/lib/admin";
+import { getProfileById, updateProfile, setUserVerified } from "@/lib/profile";
+import { addReply, createThread, isValidCategory } from "@/lib/forum";
+import { sendMessage as sendSupportMessage } from "@/lib/support";
+import { addComment } from "@/lib/comments";
+import { rateManga } from "@/lib/ratings";
+import { saveImage, deleteImage } from "@/lib/storage";
+import {
+  bannedMessage,
+  containsProfanity,
+  getBanStatus,
+  profanityBanMessage,
+  recordProfanityOffense,
+  PROFANITY_WARNING,
+} from "@/lib/moderation";
+import { isAvatarColor } from "@/lib/avatar";
+import type { MangaStatus, CommentTarget } from "@/types";
+
+export interface ActionState {
+  error?: string;
+  success?: string;
+}
+
+const VALID_STATUS: MangaStatus[] = ["ongoing", "completed", "hiatus", "cancelled"];
+
+function slugify(input: string): string {
+  // ASCII-only slug keeps URLs robust regardless of the title's language.
+  // (The displayed title is always the original; only the URL slug is ASCII.)
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+function fileList(formData: FormData, key: string): File[] {
+  return formData
+    .getAll(key)
+    .filter((v): v is File => v instanceof File && v.size > 0);
+}
+
+/**
+ * Normalize a user-supplied website into an absolute http(s) URL.
+ * Returns null when the value can't be made into a valid link.
+ */
+function normalizeWebsite(input: string): string | null {
+  let s = input.trim();
+  if (!s) return null;
+  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+  try {
+    const url = new URL(s);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (!url.hostname.includes(".")) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/* -------------------------------- auth -------------------------------- */
+
+export async function signupAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const username = String(formData.get("username") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+
+  if (username.length < 3) return { error: "اسم المستخدم يجب أن يكون ٣ أحرف على الأقل." };
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+    return { error: "يرجى إدخال بريد إلكتروني صحيح." };
+  if (password.length < 8)
+    return { error: "كلمة المرور يجب أن تكون ٨ أحرف على الأقل." };
+  if (password !== confirm) return { error: "كلمتا المرور غير متطابقتين." };
+
+  try {
+    const user = await createUser(username, email, password);
+    createSession(user.id);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر إنشاء الحساب." };
+  }
+  redirect("/");
+}
+
+export async function loginAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const identifier = String(formData.get("identifier") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const next = String(formData.get("next") ?? "/") || "/";
+
+  if (!identifier || !password)
+    return { error: "يرجى إدخال البريد/اسم المستخدم وكلمة المرور." };
+
+  const user = await verifyCredentials(identifier, password);
+  if (!user) return { error: "بيانات الدخول غير صحيحة." };
+
+  createSession(user.id);
+  redirect(next.startsWith("/") ? next : "/");
+}
+
+export async function logoutAction(): Promise<void> {
+  destroySession();
+  redirect("/");
+}
+
+/* ------------------------------- uploads ------------------------------ */
+
+export async function createMangaAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/upload");
+
+  const title = String(formData.get("title") ?? "").trim();
+  const synopsis = String(formData.get("synopsis") ?? "").trim();
+  const author = String(formData.get("author") ?? "").trim();
+  const statusRaw = String(formData.get("status") ?? "ongoing") as MangaStatus;
+  const status = VALID_STATUS.includes(statusRaw) ? statusRaw : "ongoing";
+  const yearRaw = parseInt(String(formData.get("year") ?? ""), 10);
+  const year = Number.isFinite(yearRaw) ? yearRaw : undefined;
+  const genreSlugs = formData.getAll("genres").map(String).filter(Boolean);
+  const cover = formData.get("cover");
+  const banner = formData.get("banner");
+
+  if (title.length < 2) return { error: "العنوان مطلوب." };
+  if (synopsis.length < 10) return { error: "أضف نبذة قصيرة عن العمل." };
+  if (genreSlugs.length === 0) return { error: "اختر تصنيفًا واحدًا على الأقل." };
+  if (!(cover instanceof File) || cover.size === 0)
+    return { error: "يرجى رفع صورة الغلاف." };
+
+  let slug: string;
+  try {
+    const fileBase = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const base = slugify(title);
+    const coverImage = await saveImage(cover, "covers", `cover-${fileBase}`);
+    const bannerImage =
+      banner instanceof File && banner.size > 0
+        ? await saveImage(banner, "banners", `banner-${fileBase}`)
+        : undefined;
+
+    const record = await createManga({
+      title,
+      authorName: author || undefined,
+      coverImage,
+      bannerImage,
+      synopsis,
+      genreSlugs,
+      status,
+      year,
+      uploaderId: user!.id,
+      slugBase: base,
+      reviewStatus:
+        (await isAdmin(user)) || user!.verified ? "approved" : "pending",
+    });
+    slug = record.slug;
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر إنشاء العمل." };
+  }
+
+  revalidatePath("/");
+  redirect(`/manga/${encodeURIComponent(slug)}`);
+}
+
+export async function addChapterAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getCurrentUser();
+  const slug = String(formData.get("slug") ?? "");
+  if (!user) redirect(`/login?next=${encodeURIComponent(`/manga/${slug}/upload`)}`);
+
+  const manga = await getMangaBySlug(slug, { includeUnapproved: true });
+  if (!manga) return { error: "العمل غير موجود." };
+
+  const number = parseFloat(String(formData.get("number") ?? ""));
+  const title = String(formData.get("title") ?? "").trim() || undefined;
+  const pages = fileList(formData, "pages");
+
+  if (!Number.isFinite(number) || number <= 0)
+    return { error: "أدخل رقم فصل صحيحًا." };
+  if (await chapterExists(slug, number))
+    return { error: "هذا الفصل موجود بالفعل." };
+  if (pages.length === 0) return { error: "أضف صفحة واحدة على الأقل." };
+
+  const reviewStatus =
+    (await isAdmin(user)) || user!.verified ? "approved" : "pending";
+
+  try {
+    const chapterDir = `chapters/${manga.id}/${number}`;
+    const urls: string[] = [];
+    for (let i = 0; i < pages.length; i++) {
+      urls.push(await saveImage(pages[i], chapterDir, String(i + 1).padStart(3, "0")));
+    }
+    await addChapter({
+      slug,
+      number,
+      title,
+      pages: urls,
+      uploaderId: user!.id,
+      reviewStatus,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر رفع الفصل." };
+  }
+
+  revalidatePath(`/manga/${slug}`);
+  // Approved chapters go straight to the reader; pending ones return to the
+  // title page where the owner sees them marked "under review".
+  if (reviewStatus === "approved") {
+    redirect(`/manga/${encodeURIComponent(slug)}/${number}`);
+  }
+  redirect(`/manga/${encodeURIComponent(slug)}`);
+}
+
+/* ------------------------------- profile ------------------------------ */
+
+const MAX_DISPLAY_NAME = 40;
+const MAX_BIO = 240;
+const MAX_WEBSITE = 120;
+
+export async function updateProfileAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/settings/profile");
+
+  const displayName = String(formData.get("displayName") ?? "").trim();
+  const bio = String(formData.get("bio") ?? "").trim();
+  const avatarColor = String(formData.get("avatarColor") ?? "");
+  const websiteRaw = String(formData.get("website") ?? "").trim();
+  const removeAvatar = formData.get("removeAvatar") === "1";
+  const removeBanner = formData.get("removeBanner") === "1";
+  const avatarFile = formData.get("avatarImage");
+  const bannerFile = formData.get("bannerImage");
+
+  if (displayName.length > MAX_DISPLAY_NAME)
+    return { error: "الاسم المعروض يجب ألا يتجاوز ٤٠ حرفًا." };
+  if (bio.length > MAX_BIO)
+    return { error: "النبذة يجب ألا تتجاوز ٢٤٠ حرفًا." };
+  if (websiteRaw.length > MAX_WEBSITE)
+    return { error: "الرابط طويل جدًا." };
+
+  // Resolve website ("" clears it; a bad value is rejected).
+  let website = "";
+  if (websiteRaw) {
+    const normalized = normalizeWebsite(websiteRaw);
+    if (!normalized)
+      return { error: "أدخل رابطًا صحيحًا (مثل: example.com)." };
+    website = normalized;
+  }
+
+  const existing = await getProfileById(user!.id);
+
+  try {
+    const base = `${user!.id}-${Date.now().toString(36)}`;
+
+    // Avatar: a new upload wins; otherwise honor an explicit remove.
+    let avatarImage: string | null | undefined;
+    if (avatarFile instanceof File && avatarFile.size > 0) {
+      avatarImage = await saveImage(avatarFile, "avatars", `avatar-${base}`);
+      await deleteImage(existing?.avatarImage);
+    } else if (removeAvatar) {
+      avatarImage = null;
+      await deleteImage(existing?.avatarImage);
+    }
+
+    // Banner: same precedence as the avatar.
+    let bannerImage: string | null | undefined;
+    if (bannerFile instanceof File && bannerFile.size > 0) {
+      bannerImage = await saveImage(bannerFile, "profile-banners", `banner-${base}`);
+      await deleteImage(existing?.bannerImage);
+    } else if (removeBanner) {
+      bannerImage = null;
+      await deleteImage(existing?.bannerImage);
+    }
+
+    await updateProfile(user!.id, {
+      displayName,
+      bio,
+      website,
+      avatarColor: isAvatarColor(avatarColor) ? avatarColor : undefined,
+      avatarImage,
+      bannerImage,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ التغييرات." };
+  }
+
+  revalidatePath("/settings/profile");
+  revalidatePath(`/u/${user!.username}`);
+  revalidatePath("/", "layout");
+  return { success: "تم حفظ التغييرات بنجاح." };
+}
+
+/* ------------------------------ community ----------------------------- */
+
+const MAX_THREAD_TITLE = 120;
+const MAX_THREAD_BODY = 5000;
+const MAX_REPLY_BODY = 2000;
+
+export async function createThreadAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/community/new");
+
+  // Block posting while serving a ban.
+  const ban = await getBanStatus(user!.id);
+  if (ban.banned) return { error: bannedMessage(ban.remainingMs) };
+
+  const categoryId = String(formData.get("category") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim();
+
+  if (!isValidCategory(categoryId)) return { error: "اختر تصنيفًا صحيحًا." };
+  if (title.length < 3) return { error: "العنوان يجب أن يكون ٣ أحرف على الأقل." };
+  if (title.length > MAX_THREAD_TITLE)
+    return { error: "العنوان طويل جدًا." };
+  if (body.length < 1) return { error: "اكتب محتوى النقاش." };
+  if (body.length > MAX_THREAD_BODY)
+    return { error: "المحتوى طويل جدًا." };
+
+  // Profanity gate: 1st offense warns, 2nd issues a 1-hour ban.
+  if (containsProfanity(`${title}\n${body}`)) {
+    const result = await recordProfanityOffense(user!.id);
+    return {
+      error:
+        result.kind === "banned" ? profanityBanMessage() : PROFANITY_WARNING,
+    };
+  }
+
+  let threadId: string;
+  try {
+    const thread = await createThread({
+      categoryId,
+      authorId: user!.id,
+      title,
+      body,
+    });
+    threadId = thread.id;
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر نشر النقاش." };
+  }
+
+  revalidatePath("/community");
+  redirect(`/community/${threadId}`);
+}
+
+export async function addReplyAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const threadId = String(formData.get("threadId") ?? "").trim();
+  const user = await getCurrentUser();
+  if (!user)
+    redirect(`/login?next=${encodeURIComponent(`/community/${threadId}`)}`);
+
+  // Block posting while serving a ban.
+  const ban = await getBanStatus(user!.id);
+  if (ban.banned) return { error: bannedMessage(ban.remainingMs) };
+
+  const body = String(formData.get("body") ?? "").trim();
+  if (!body) return { error: "اكتب ردًّا." };
+  if (body.length > MAX_REPLY_BODY) return { error: "الرد طويل جدًا." };
+
+  // Profanity gate: 1st offense warns, 2nd issues a 1-hour ban.
+  if (containsProfanity(body)) {
+    const result = await recordProfanityOffense(user!.id);
+    return {
+      error:
+        result.kind === "banned" ? profanityBanMessage() : PROFANITY_WARNING,
+    };
+  }
+
+  try {
+    const reply = await addReply({ threadId, authorId: user!.id, body });
+    if (!reply) return { error: "النقاش غير موجود." };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر إرسال الرد." };
+  }
+
+  revalidatePath(`/community/${threadId}`);
+  revalidatePath("/community");
+  return { success: "تم نشر ردّك." };
+}
+
+/* -------------------------------- admin ------------------------------- */
+
+async function requireAdmin() {
+  const admin = await getCurrentAdmin();
+  if (!admin) redirect("/");
+}
+
+export async function approveMangaAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  await setMangaReview(String(formData.get("mangaId") ?? ""), "approved");
+  revalidatePath("/admin");
+  revalidatePath("/", "layout");
+}
+
+export async function rejectMangaAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  await setMangaReview(String(formData.get("mangaId") ?? ""), "rejected");
+  revalidatePath("/admin");
+  revalidatePath("/", "layout");
+}
+
+export async function approveChapterAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  await setChapterReview(
+    String(formData.get("mangaId") ?? ""),
+    String(formData.get("chapterId") ?? ""),
+    "approved",
+  );
+  revalidatePath("/admin");
+  revalidatePath("/", "layout");
+}
+
+export async function rejectChapterAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  await setChapterReview(
+    String(formData.get("mangaId") ?? ""),
+    String(formData.get("chapterId") ?? ""),
+    "rejected",
+  );
+  revalidatePath("/admin");
+  revalidatePath("/", "layout");
+}
+
+/* --------------------------- verification ----------------------------- */
+
+export async function verifyUserAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  const username = String(formData.get("username") ?? "");
+  await setUserVerified(userId, true);
+  revalidatePath("/", "layout");
+  if (username) revalidatePath(`/u/${username}`);
+}
+
+export async function unverifyUserAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  const username = String(formData.get("username") ?? "");
+  await setUserVerified(userId, false);
+  revalidatePath("/", "layout");
+  if (username) revalidatePath(`/u/${username}`);
+}
+
+/* --------------------------- support chat ----------------------------- */
+
+const MAX_SUPPORT_BODY = 2000;
+
+export async function sendSupportMessageAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/support");
+
+  const body = String(formData.get("body") ?? "").trim();
+  if (!body) return { error: "اكتب رسالتك." };
+  if (body.length > MAX_SUPPORT_BODY) return { error: "الرسالة طويلة جدًا." };
+  // Keep support civil, but never ban here — a banned user must still be able
+  // to reach the admins (e.g. to appeal).
+  if (containsProfanity(body))
+    return { error: "يرجى استخدام لغة لائقة عند مراسلة الإدارة." };
+
+  await sendSupportMessage({
+    userId: user!.id,
+    senderId: user!.id,
+    fromAdmin: false,
+    body,
+  });
+
+  revalidatePath("/support");
+  revalidatePath("/admin/messages");
+  return { success: "تم إرسال رسالتك." };
+}
+
+export async function adminReplySupportAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const admin = await getCurrentAdmin();
+  if (!admin) redirect("/");
+
+  const userId = String(formData.get("userId") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim();
+  if (!userId) return { error: "محادثة غير صالحة." };
+  if (!body) return { error: "اكتب ردًّا." };
+  if (body.length > MAX_SUPPORT_BODY) return { error: "الرسالة طويلة جدًا." };
+
+  await sendSupportMessage({
+    userId,
+    senderId: admin!.id,
+    fromAdmin: true,
+    body,
+  });
+
+  revalidatePath(`/admin/messages/${userId}`);
+  revalidatePath("/admin/messages");
+  revalidatePath("/support");
+  return { success: "تم إرسال الرد." };
+}
+
+/* ------------------------------ comments ------------------------------ */
+
+const MAX_COMMENT_BODY = 2000;
+
+export async function addCommentAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const path = String(formData.get("path") ?? "/") || "/";
+  const user = await getCurrentUser();
+  if (!user) redirect(`/login?next=${encodeURIComponent(path)}`);
+
+  const targetType = String(formData.get("targetType") ?? "") as CommentTarget;
+  const targetId = String(formData.get("targetId") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim();
+
+  if (targetType !== "manga" && targetType !== "chapter")
+    return { error: "هدف غير صالح." };
+  if (!targetId) return { error: "هدف غير صالح." };
+
+  // Same posting rules as the community: ban check, then profanity strikes.
+  const ban = await getBanStatus(user!.id);
+  if (ban.banned) return { error: bannedMessage(ban.remainingMs) };
+
+  if (!body) return { error: "اكتب تعليقًا." };
+  if (body.length > MAX_COMMENT_BODY) return { error: "التعليق طويل جدًا." };
+
+  if (containsProfanity(body)) {
+    const result = await recordProfanityOffense(user!.id);
+    return {
+      error:
+        result.kind === "banned" ? profanityBanMessage() : PROFANITY_WARNING,
+    };
+  }
+
+  await addComment({ targetType, targetId, authorId: user!.id, body });
+  revalidatePath(path);
+  return { success: "تم نشر تعليقك." };
+}
+
+/* ------------------------------- ratings ------------------------------ */
+
+/** Direct-call action: set the current user's 1–5 rating for a manga. */
+export async function rateMangaAction(
+  mangaId: string,
+  value: number,
+  slug: string,
+): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) return;
+  if (!Number.isFinite(value) || value < 1 || value > 5) return;
+  await rateManga(mangaId, user.id, value);
+  revalidatePath(`/manga/${slug}`);
+}

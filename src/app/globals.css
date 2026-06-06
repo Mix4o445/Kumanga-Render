@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================ THEME TOKENS ============================ *
+ * Clean neutral-dark (default) and light themes with a single coral accent.
+ * --------------------------------------------------------------------- */
+
+:root,
+.dark {
+  --c-canvas: 24 24 28; /* #18181c */
+  --c-surface: 33 33 39; /* #212127 */
+  --c-surface-raised: 44 44 52; /* #2c2c34 */
+  --c-fg: 237 237 240;
+  --c-fg-muted: 184 184 194;
+  --c-fg-subtle: 140 140 150;
+  --c-fg-faint: 104 104 114;
+
+  --c-accent: 255 103 64; /* #ff6740 */
+  --c-accent-bright: 255 133 95;
+
+  --c-line: rgb(255 255 255 / 0.08);
+  --c-line-strong: rgb(255 255 255 / 0.16);
+  --c-overlay: rgb(255 255 255 / 0.05);
+  --c-overlay-strong: rgb(255 255 255 / 0.1);
+  --c-input: rgb(0 0 0 / 0.25);
+
+  --nav-height: 4.5rem;
+}
+
+.light {
+  --c-canvas: 244 244 246; /* #f4f4f6 */
+  --c-surface: 255 255 255;
+  --c-surface-raised: 255 255 255;
+  --c-fg: 24 24 27;
+  --c-fg-muted: 63 63 70;
+  --c-fg-subtle: 113 113 122;
+  --c-fg-faint: 148 148 156;
+
+  --c-accent: 240 84 42; /* #f0542a — deeper for contrast on light */
+  --c-accent-bright: 255 103 64;
+
+  --c-line: rgb(24 24 27 / 0.1);
+  --c-line-strong: rgb(24 24 27 / 0.18);
+  --c-overlay: rgb(24 24 27 / 0.04);
+  --c-overlay-strong: rgb(24 24 27 / 0.08);
+  --c-input: rgb(24 24 27 / 0.04);
+}
+
+@layer base {
+  * {
+    border-color: var(--c-line);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-canvas text-fg;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  ::selection {
+    background-color: rgb(var(--c-accent) / 0.85);
+    color: #fff;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent/70 ring-offset-2;
+    ring-offset-color: rgb(var(--c-canvas));
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: rgb(var(--c-surface-raised));
+    background-image: linear-gradient(
+      110deg,
+      rgb(255 255 255 / 0) 0%,
+      rgb(255 255 255 / 0.05) 35%,
+      rgb(255 255 255 / 0.12) 50%,
+      rgb(255 255 255 / 0.05) 65%,
+      rgb(255 255 255 / 0) 100%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  /* Scrims sit over imagery, so they stay dark in both themes. */
+  .hero-scrim-rtl {
+    background-image: linear-gradient(
+      to left,
+      rgb(10 10 12 / 0.95) 0%,
+      rgb(10 10 12 / 0.82) 28%,
+      rgb(10 10 12 / 0.5) 55%,
+      rgb(10 10 12 / 0.15) 80%,
+      rgb(10 10 12 / 0) 100%
+    );
+  }
+  .hero-scrim-bottom {
+    background-image: linear-gradient(
+      to top,
+      rgb(10 10 12 / 0.85) 0%,
+      rgb(10 10 12 / 0.25) 45%,
+      rgb(10 10 12 / 0) 75%
+    );
+  }
+  .poster-scrim {
+    background-image: linear-gradient(
+      to top,
+      rgb(10 10 12 / 0.92) 0%,
+      rgb(10 10 12 / 0.5) 32%,
+      rgb(10 10 12 / 0.05) 62%,
+      rgb(10 10 12 / 0) 100%
+    );
+  }
+}
