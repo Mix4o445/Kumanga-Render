@@ -15,7 +15,7 @@ services:
     name: manga-platform
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm run start -- -p $PORT
     healthCheckPath: /
     envVars:
