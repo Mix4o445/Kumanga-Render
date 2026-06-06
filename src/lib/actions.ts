@@ -25,7 +25,11 @@ import {
 import { getCurrentAdmin, isAdmin } from "@/lib/admin";
 import { getProfileById, updateProfile, setUserVerified } from "@/lib/profile";
 import { addReply, createThread, isValidCategory } from "@/lib/forum";
-import { sendMessage as sendSupportMessage } from "@/lib/support";
+import {
+  sendMessage as sendSupportMessage,
+  markUserRead,
+  markAdminRead,
+} from "@/lib/support";
 import { addComment } from "@/lib/comments";
 import { rateManga } from "@/lib/ratings";
 import { saveImage, deleteImage } from "@/lib/storage";
@@ -648,6 +652,26 @@ export async function unverifyUserAction(formData: FormData): Promise<void> {
 /* --------------------------- support chat ----------------------------- */
 
 const MAX_SUPPORT_BODY = 2000;
+
+/**
+ * Clear the unread indicator for the current viewer. Called on mount when a
+ * conversation is opened; revalidates the layout so the nav badge updates.
+ */
+export async function markSupportReadAction(userId?: string): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  if (userId) {
+    // Admin viewing a specific user's conversation.
+    if (!(await isAdmin(user))) return;
+    await markAdminRead(userId);
+  } else {
+    // A user viewing their own conversation.
+    await markUserRead(user.id);
+  }
+
+  revalidatePath("/", "layout");
+}
 
 export async function sendSupportMessageAction(
   _prev: ActionState,

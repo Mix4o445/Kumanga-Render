@@ -26,5 +26,5 @@ interface LogoProps {
  * black (light mode) via the CSS mask in {@link FoxMark}.
  */
 export function Logo({ className }: LogoProps) {
-  return <FoxMark className={cn("h-9 w-auto aspect-[75/56]", className)} />;
+  return <FoxMark className={cn("h-14 w-auto aspect-[75/56]", className)} />;
 }

@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { getCurrentAdmin } from "@/lib/admin";
-import { getConversation, markAdminRead } from "@/lib/support";
+import { getConversation } from "@/lib/support";
 import { Avatar } from "@/components/ui/Avatar";
 import { SupportThread } from "@/components/support/SupportThread";
 import { SupportComposer } from "@/components/support/SupportComposer";
+import { MarkSupportRead } from "@/components/support/MarkSupportRead";
 
 export const metadata = { title: "محادثة الدعم | قارئ مانجا" };
 
@@ -21,9 +22,6 @@ export default async function AdminConversationPage({
   // No such user at all → 404; an existing user with no messages is fine.
   if (!conversation.user && conversation.messages.length === 0) notFound();
 
-  // Opening the conversation clears its unread indicator for admins.
-  await markAdminRead(params.userId);
-
   const name =
     conversation.user?.displayName ||
     conversation.user?.username ||
@@ -31,6 +29,7 @@ export default async function AdminConversationPage({
 
   return (
     <div className="mx-auto max-w-3xl">
+      <MarkSupportRead userId={params.userId} />
       <Link
         href="/admin/messages"
         className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-fg-subtle transition-colors hover:text-accent"
