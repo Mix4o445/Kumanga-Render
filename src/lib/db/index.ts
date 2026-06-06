@@ -390,3 +390,95 @@ export async function chapterExists(slug: string, number: number): Promise<boole
   const manga = stored.find((m) => m.slug === slug);
   return Boolean(manga?.chapters.some((c) => c.number === number));
 }
+
+/* --------------------------- edit / delete ---------------------------- */
+
+/** Raw stored manga by id (server/admin use — includes unapproved). */
+export async function getMangaById(id: string): Promise<StoredManga | null> {
+  const stored = await mangaStore.all();
+  return stored.find((m) => m.id === id) ?? null;
+}
+
+export interface MangaEdit {
+  title?: string;
+  authorName?: string;
+  synopsis?: string;
+  status?: MangaStatus;
+  year?: number;
+  genreSlugs?: string[];
+  coverImage?: string;
+  bannerImage?: string;
+}
+
+/** Update editable manga fields. Only provided keys are changed. */
+export async function updateManga(
+  mangaId: string,
+  fields: MangaEdit,
+): Promise<StoredManga | null> {
+  const stored = await mangaStore.all();
+  const manga = stored.find((m) => m.id === mangaId);
+  if (!manga) return null;
+
+  if (fields.title !== undefined) manga.title = fields.title;
+  if (fields.authorName !== undefined)
+    manga.authorName = fields.authorName || undefined;
+  if (fields.synopsis !== undefined) manga.synopsis = fields.synopsis;
+  if (fields.status !== undefined) manga.status = fields.status;
+  if (fields.year !== undefined) manga.year = fields.year;
+  if (fields.genreSlugs !== undefined) manga.genreSlugs = fields.genreSlugs;
+  if (fields.coverImage !== undefined) manga.coverImage = fields.coverImage;
+  if (fields.bannerImage !== undefined) manga.bannerImage = fields.bannerImage;
+  manga.updatedAt = new Date().toISOString();
+
+  await mangaStore.save(stored);
+  return manga;
+}
+
+/** Update a chapter's number and/or title. Returns the manga, or null/"dup". */
+export async function updateChapter(
+  mangaId: string,
+  chapterId: string,
+  fields: { number?: number; title?: string },
+): Promise<"not-found" | "duplicate" | StoredManga> {
+  const stored = await mangaStore.all();
+  const manga = stored.find((m) => m.id === mangaId);
+  if (!manga) return "not-found";
+  const chapter = manga.chapters.find((c) => c.id === chapterId);
+  if (!chapter) return "not-found";
+
+  if (fields.number !== undefined && fields.number !== chapter.number) {
+    if (manga.chapters.some((c) => c.id !== chapterId && c.number === fields.number)) {
+      return "duplicate";
+    }
+    chapter.number = fields.number;
+  }
+  if (fields.title !== undefined) chapter.title = fields.title || undefined;
+
+  await mangaStore.save(stored);
+  return manga;
+}
+
+/** Remove a manga entirely. Returns the removed record (for image cleanup). */
+export async function deleteManga(mangaId: string): Promise<StoredManga | null> {
+  const stored = await mangaStore.all();
+  const index = stored.findIndex((m) => m.id === mangaId);
+  if (index === -1) return null;
+  const [removed] = stored.splice(index, 1);
+  await mangaStore.save(stored);
+  return removed;
+}
+
+/** Remove a single chapter. Returns the removed chapter (for image cleanup). */
+export async function deleteChapter(
+  mangaId: string,
+  chapterId: string,
+): Promise<StoredChapter | null> {
+  const stored = await mangaStore.all();
+  const manga = stored.find((m) => m.id === mangaId);
+  if (!manga) return null;
+  const index = manga.chapters.findIndex((c) => c.id === chapterId);
+  if (index === -1) return null;
+  const [removed] = manga.chapters.splice(index, 1);
+  await mangaStore.save(stored);
+  return removed;
+}

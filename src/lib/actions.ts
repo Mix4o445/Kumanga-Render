@@ -14,6 +14,11 @@ import {
   chapterExists,
   createManga,
   getMangaBySlug,
+  getMangaById,
+  updateManga,
+  updateChapter,
+  deleteManga,
+  deleteChapter,
   setChapterReview,
   setMangaReview,
 } from "@/lib/db";
@@ -418,40 +423,206 @@ async function requireAdmin() {
   if (!admin) redirect("/");
 }
 
+/**
+ * Permission gate for editing/deleting content: the site admin, or the user
+ * who originally uploaded the manga. Returns the manga record when allowed,
+ * otherwise redirects home.
+ */
+async function requireManage(mangaId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const manga = await getMangaById(mangaId);
+  if (!manga) redirect("/");
+  const admin = await isAdmin(user);
+  if (!admin && manga.uploaderId !== user!.id) redirect("/");
+  return { user: user!, manga, admin };
+}
+
+/** Notify an uploader in their support inbox about a review decision. */
+async function notifyReview(
+  uploaderId: string | undefined,
+  body: string,
+): Promise<void> {
+  if (!uploaderId) return;
+  const admin = await getCurrentAdmin();
+  await sendSupportMessage({
+    userId: uploaderId,
+    senderId: admin?.id ?? uploaderId,
+    fromAdmin: true,
+    body,
+  });
+  revalidatePath("/support");
+  revalidatePath(`/admin/messages/${uploaderId}`);
+}
+
 export async function approveMangaAction(formData: FormData): Promise<void> {
   await requireAdmin();
-  await setMangaReview(String(formData.get("mangaId") ?? ""), "approved");
+  const mangaId = String(formData.get("mangaId") ?? "");
+  const manga = await getMangaById(mangaId);
+  await setMangaReview(mangaId, "approved");
+  if (manga) {
+    await notifyReview(
+      manga.uploaderId,
+      `✅ تمت الموافقة على عملك «${manga.title}» وأصبح ظاهرًا للقرّاء الآن. شكرًا لمساهمتك!`,
+    );
+  }
   revalidatePath("/admin");
   revalidatePath("/", "layout");
 }
 
 export async function rejectMangaAction(formData: FormData): Promise<void> {
   await requireAdmin();
-  await setMangaReview(String(formData.get("mangaId") ?? ""), "rejected");
+  const mangaId = String(formData.get("mangaId") ?? "");
+  const manga = await getMangaById(mangaId);
+  await setMangaReview(mangaId, "rejected");
+  if (manga) {
+    await notifyReview(
+      manga.uploaderId,
+      `❌ نأسف، لم تتم الموافقة على عملك «${manga.title}». يرجى مراجعة سياسة المحتوى. يمكنك الرد هنا للاستفسار.`,
+    );
+  }
   revalidatePath("/admin");
   revalidatePath("/", "layout");
 }
 
 export async function approveChapterAction(formData: FormData): Promise<void> {
   await requireAdmin();
-  await setChapterReview(
-    String(formData.get("mangaId") ?? ""),
-    String(formData.get("chapterId") ?? ""),
-    "approved",
-  );
+  const mangaId = String(formData.get("mangaId") ?? "");
+  const chapterId = String(formData.get("chapterId") ?? "");
+  const manga = await getMangaById(mangaId);
+  const chapter = manga?.chapters.find((c) => c.id === chapterId);
+  await setChapterReview(mangaId, chapterId, "approved");
+  if (manga && chapter) {
+    await notifyReview(
+      chapter.uploaderId,
+      `✅ تمت الموافقة على الفصل ${chapter.number} من «${manga.title}» وأصبح متاحًا للقرّاء.`,
+    );
+  }
   revalidatePath("/admin");
   revalidatePath("/", "layout");
 }
 
 export async function rejectChapterAction(formData: FormData): Promise<void> {
   await requireAdmin();
-  await setChapterReview(
-    String(formData.get("mangaId") ?? ""),
-    String(formData.get("chapterId") ?? ""),
-    "rejected",
-  );
+  const mangaId = String(formData.get("mangaId") ?? "");
+  const chapterId = String(formData.get("chapterId") ?? "");
+  const manga = await getMangaById(mangaId);
+  const chapter = manga?.chapters.find((c) => c.id === chapterId);
+  await setChapterReview(mangaId, chapterId, "rejected");
+  if (manga && chapter) {
+    await notifyReview(
+      chapter.uploaderId,
+      `❌ لم تتم الموافقة على الفصل ${chapter.number} من «${manga.title}». يمكنك الرد هنا للاستفسار.`,
+    );
+  }
   revalidatePath("/admin");
   revalidatePath("/", "layout");
+}
+
+/* --------------------------- edit / delete ---------------------------- */
+
+export async function editMangaAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const mangaId = String(formData.get("mangaId") ?? "");
+  const { manga } = await requireManage(mangaId);
+
+  const title = String(formData.get("title") ?? "").trim();
+  const synopsis = String(formData.get("synopsis") ?? "").trim();
+  const author = String(formData.get("author") ?? "").trim();
+  const statusRaw = String(formData.get("status") ?? manga.status) as MangaStatus;
+  const status = VALID_STATUS.includes(statusRaw) ? statusRaw : manga.status;
+  const yearRaw = parseInt(String(formData.get("year") ?? ""), 10);
+  const year = Number.isFinite(yearRaw) ? yearRaw : undefined;
+  const genreSlugs = formData.getAll("genres").map(String).filter(Boolean);
+  const cover = formData.get("cover");
+  const banner = formData.get("banner");
+
+  if (title.length < 2) return { error: "العنوان مطلوب." };
+  if (synopsis.length < 10) return { error: "أضف نبذة قصيرة عن العمل." };
+  if (genreSlugs.length === 0) return { error: "اختر تصنيفًا واحدًا على الأقل." };
+
+  try {
+    const base = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    let coverImage: string | undefined;
+    if (cover instanceof File && cover.size > 0) {
+      coverImage = await saveImage(cover, "covers", `cover-${base}`);
+      await deleteImage(manga.coverImage);
+    }
+    let bannerImage: string | undefined;
+    if (banner instanceof File && banner.size > 0) {
+      bannerImage = await saveImage(banner, "banners", `banner-${base}`);
+      await deleteImage(manga.bannerImage);
+    }
+
+    await updateManga(mangaId, {
+      title,
+      authorName: author || undefined,
+      synopsis,
+      status,
+      year,
+      genreSlugs,
+      coverImage,
+      bannerImage,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "تعذّر حفظ التغييرات." };
+  }
+
+  revalidatePath(`/manga/${manga.slug}`);
+  revalidatePath("/", "layout");
+  redirect(`/manga/${encodeURIComponent(manga.slug)}`);
+}
+
+export async function editChapterAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const mangaId = String(formData.get("mangaId") ?? "");
+  const chapterId = String(formData.get("chapterId") ?? "");
+  const { manga } = await requireManage(mangaId);
+
+  const number = parseFloat(String(formData.get("number") ?? ""));
+  const title = String(formData.get("title") ?? "").trim();
+  if (!Number.isFinite(number) || number <= 0)
+    return { error: "أدخل رقم فصل صحيحًا." };
+
+  const result = await updateChapter(mangaId, chapterId, { number, title });
+  if (result === "not-found") return { error: "الفصل غير موجود." };
+  if (result === "duplicate") return { error: "رقم الفصل مستخدم بالفعل." };
+
+  revalidatePath(`/manga/${manga.slug}`);
+  redirect(`/manga/${encodeURIComponent(manga.slug)}`);
+}
+
+export async function deleteMangaAction(formData: FormData): Promise<void> {
+  const mangaId = String(formData.get("mangaId") ?? "");
+  await requireManage(mangaId);
+  const removed = await deleteManga(mangaId);
+  if (removed) {
+    // Clean up all associated images from storage.
+    await deleteImage(removed.coverImage);
+    await deleteImage(removed.bannerImage);
+    for (const chapter of removed.chapters) {
+      for (const page of chapter.pages) await deleteImage(page);
+    }
+  }
+  revalidatePath("/", "layout");
+  redirect("/");
+}
+
+export async function deleteChapterAction(formData: FormData): Promise<void> {
+  const mangaId = String(formData.get("mangaId") ?? "");
+  const chapterId = String(formData.get("chapterId") ?? "");
+  const { manga } = await requireManage(mangaId);
+  const removed = await deleteChapter(mangaId, chapterId);
+  if (removed) {
+    for (const page of removed.pages) await deleteImage(page);
+  }
+  revalidatePath(`/manga/${manga.slug}`);
+  revalidatePath("/", "layout");
+  redirect(`/manga/${encodeURIComponent(manga.slug)}`);
 }
 
 /* --------------------------- verification ----------------------------- */

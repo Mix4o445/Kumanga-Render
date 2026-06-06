@@ -1,14 +1,20 @@
 import Link from "next/link";
-import { BookOpen, ChevronLeft, Inbox } from "lucide-react";
+import { BookOpen, ChevronLeft, Inbox, Pencil } from "lucide-react";
 import type { Chapter } from "@/types";
 import { formatChapterLabel, formatRelativeTime } from "@/lib/utils";
+import { deleteChapterAction } from "@/lib/actions";
+import { DeleteButton } from "@/components/manga/DeleteButton";
 
 export function ChapterList({
   slug,
   chapters,
+  canManage = false,
+  mangaId,
 }: {
   slug: string;
   chapters: Chapter[];
+  canManage?: boolean;
+  mangaId?: string;
 }) {
   return (
     <section id="chapters" className="scroll-mt-24">
@@ -37,10 +43,10 @@ export function ChapterList({
       ) : (
         <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface-raised/40">
           {chapters.map((chapter) => (
-            <li key={chapter.id}>
+            <li key={chapter.id} className="flex items-center">
               <Link
                 href={`/manga/${slug}/${chapter.number}`}
-                className="group flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-overlay"
+                className="group flex min-w-0 flex-1 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-overlay"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-overlay text-sm font-bold text-fg-muted ring-1 ring-line transition-colors group-hover:text-orange-400">
@@ -71,6 +77,26 @@ export function ChapterList({
                   />
                 </div>
               </Link>
+              {canManage && mangaId ? (
+                <div className="flex shrink-0 items-center gap-1.5 pe-3">
+                  <Link
+                    href={`/manga/${slug}/${chapter.number}/edit`}
+                    aria-label="تعديل الفصل"
+                    title="تعديل الفصل"
+                    className="grid size-9 place-items-center rounded-pill bg-overlay text-fg-muted ring-1 ring-line transition-colors hover:text-fg active:scale-95"
+                  >
+                    <Pencil className="size-4" aria-hidden />
+                  </Link>
+                  <DeleteButton
+                    action={deleteChapterAction}
+                    fields={{ mangaId, chapterId: chapter.id }}
+                    label="حذف الفصل"
+                    iconOnly
+                    confirmMessage={`هل أنت متأكد من حذف الفصل ${chapter.number}؟ لا يمكن التراجع.`}
+                    className="grid size-9 place-items-center rounded-pill bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/30 transition-colors hover:bg-rose-500/25 active:scale-95"
+                  />
+                </div>
+              ) : null}
             </li>
           ))}
         </ol>

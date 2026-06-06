@@ -11,6 +11,7 @@ import {
   Plus,
   Clock3,
   Ban,
+  Pencil,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getChapters, getMangaBySlug, getRelated } from "@/lib/db";
@@ -18,6 +19,8 @@ import { getRatingSummary } from "@/lib/ratings";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import { getProfileById } from "@/lib/profile";
+import { deleteMangaAction } from "@/lib/actions";
+import { DeleteButton } from "@/components/manga/DeleteButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { STATUS_META } from "@/lib/config";
@@ -231,6 +234,24 @@ export default async function MangaPage({
                 رفع فصل
               </Link>
             </div>
+
+            {canManage ? (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <Link
+                  href={`/manga/${manga.slug}/edit`}
+                  className="inline-flex items-center gap-1.5 rounded-pill bg-overlay px-4 py-2 text-xs font-bold text-fg-muted ring-1 ring-line transition-colors hover:text-fg active:scale-95"
+                >
+                  <Pencil className="size-4" aria-hidden />
+                  تعديل العمل
+                </Link>
+                <DeleteButton
+                  action={deleteMangaAction}
+                  fields={{ mangaId: manga.id }}
+                  label="حذف العمل"
+                  confirmMessage={`هل أنت متأكد من حذف «${manga.title}» وجميع فصوله؟ لا يمكن التراجع.`}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
@@ -274,7 +295,12 @@ export default async function MangaPage({
         </div>
       </section>
 
-      <ChapterList slug={manga.slug} chapters={chapters} />
+      <ChapterList
+        slug={manga.slug}
+        chapters={chapters}
+        canManage={canManage}
+        mangaId={manga.id}
+      />
 
       <CommentsSection
         targetType="manga"
