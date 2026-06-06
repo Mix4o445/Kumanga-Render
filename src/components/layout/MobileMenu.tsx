@@ -51,10 +51,10 @@ export function MobileMenu() {
               onClick={() => setOpen(false)}
             />
             <motion.aside
-              className="fixed inset-y-0 end-0 z-[70] flex w-[82%] max-w-sm flex-col bg-surface shadow-card lg:hidden"
-              initial={{ x: "-100%" }}
+              className="fixed inset-y-0 start-0 z-[70] flex w-[82%] max-w-sm flex-col bg-surface shadow-card lg:hidden"
+              initial={{ x: "100%" }}
               animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
+              exit={{ x: "100%" }}
               transition={{ type: "spring", stiffness: 320, damping: 34 }}
             >
               <div className="flex items-center justify-between border-b border-line px-4 py-4">
