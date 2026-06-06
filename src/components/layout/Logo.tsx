@@ -1,31 +1,19 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Brand mark: a flat coral rounded-square tile with a simple brush "マ"
- * (manga). Clean and modern — no textures or hard shadows.
+ * Brand mark rendered from `/logo.png`. The PNG is used as a CSS mask and
+ * filled with the theme foreground color, so it shows white in dark mode and
+ * black in light mode automatically.
  */
 export function FoxMark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "grid shrink-0 place-items-center rounded-card bg-accent text-white",
+        "block shrink-0 bg-fg [mask-image:url(/logo.png)] [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain] [-webkit-mask-image:url(/logo.png)] [-webkit-mask-position:center] [-webkit-mask-repeat:no-repeat] [-webkit-mask-size:contain]",
         className,
       )}
       aria-hidden
-    >
-      <svg
-        viewBox="0 0 64 64"
-        className="size-[58%]"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={6}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M16 21 L48 18" />
-        <path d="M42 22 C41 35 34 43 22 48" />
-      </svg>
-    </span>
+    />
   );
 }
 

@@ -25,7 +25,7 @@ export default async function EditChapterPage({
   if (!ctx) notFound();
 
   const admin = await isAdmin(user);
-  if (!admin && ctx.manga.uploaderId !== user.id)
+  if (!admin)
     redirect(`/manga/${params.slug}`);
 
   return (

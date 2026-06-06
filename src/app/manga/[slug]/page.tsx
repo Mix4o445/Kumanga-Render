@@ -75,7 +75,9 @@ export default async function MangaPage({
   if (!manga) notFound();
 
   const isOwner = Boolean(user && user.id === manga.uploaderId);
+  // Owners can still *see* their pending content, but only admins may edit/delete.
   const canManage = admin || isOwner;
+  const canEdit = admin;
   const isApproved =
     manga.reviewStatus === undefined || manga.reviewStatus === "approved";
   // Hide unapproved titles from everyone but the owner and admins.
@@ -248,7 +250,7 @@ export default async function MangaPage({
               </Link>
             </div>
 
-            {canManage ? (
+            {canEdit ? (
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 <Link
                   href={`/manga/${manga.slug}/edit`}
@@ -311,7 +313,7 @@ export default async function MangaPage({
       <ChapterList
         slug={manga.slug}
         chapters={chapters}
-        canManage={canManage}
+        canManage={canEdit}
         mangaId={manga.id}
         uploaders={uploaders}
       />

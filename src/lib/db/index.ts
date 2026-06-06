@@ -101,9 +101,12 @@ export async function getAllManga(): Promise<Manga[]> {
 
 export async function getFeatured(limit = 5): Promise<Manga[]> {
   const all = await publicManga();
-  // Newest titles that actually have at least one chapter make the best hero.
-  const items = all.filter((m) => m.totalChapters > 0).sort(byUpdated);
-  return (items.length ? items : all).slice(0, limit);
+  // Newest titles that actually have at least one chapter make the best hero,
+  // then backfill with the remaining titles so the slider always fills up to
+  // `limit` works when possible.
+  const withChapters = all.filter((m) => m.totalChapters > 0).sort(byUpdated);
+  const rest = all.filter((m) => m.totalChapters === 0).sort(byUpdated);
+  return [...withChapters, ...rest].slice(0, limit);
 }
 
 export async function getMostPopular(limit = 12): Promise<Manga[]> {

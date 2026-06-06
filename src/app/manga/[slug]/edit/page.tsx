@@ -20,7 +20,7 @@ export default async function EditMangaPage({
   if (!manga) notFound();
 
   const admin = await isAdmin(user);
-  if (!admin && manga.uploaderId !== user.id) redirect(`/manga/${params.slug}`);
+  if (!admin) redirect(`/manga/${params.slug}`);
 
   return (
     <div className="mx-auto max-w-3xl">

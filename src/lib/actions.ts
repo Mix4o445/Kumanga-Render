@@ -424,17 +424,17 @@ async function requireAdmin() {
 }
 
 /**
- * Permission gate for editing/deleting content: the site admin, or the user
- * who originally uploaded the manga. Returns the manga record when allowed,
- * otherwise redirects home.
+ * Permission gate for editing/deleting content: admins only. Normal users
+ * (including the original uploader) cannot edit or delete content. Returns the
+ * manga record when allowed, otherwise redirects home.
  */
 async function requireManage(mangaId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const admin = await isAdmin(user);
+  if (!admin) redirect("/");
   const manga = await getMangaById(mangaId);
   if (!manga) redirect("/");
-  const admin = await isAdmin(user);
-  if (!admin && manga.uploaderId !== user!.id) redirect("/");
   return { user: user!, manga, admin };
 }
 
