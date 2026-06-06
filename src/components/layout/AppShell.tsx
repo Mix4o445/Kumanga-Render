@@ -1,6 +1,7 @@
 import { getLatestUpdates } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
+import { adminUnreadCount, hasUnreadForUser } from "@/lib/support";
 import { TopNav } from "./TopNav";
 import { RightSidebar } from "./RightSidebar";
 import { LeftSidebar } from "./LeftSidebar";
@@ -19,9 +20,17 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   ]);
   const admin = await isAdmin(user);
 
+  // Unread support indicator: admins watch the inbox, users watch their thread.
+  let unreadMessages = false;
+  if (user) {
+    unreadMessages = admin
+      ? (await adminUnreadCount()) > 0
+      : await hasUnreadForUser(user.id);
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
-      <TopNav user={user} isAdmin={admin} />
+      <TopNav user={user} isAdmin={admin} unreadMessages={unreadMessages} />
 
       <div className="mx-auto flex w-full max-w-[1600px] flex-1 items-start">
         <RightSidebar />

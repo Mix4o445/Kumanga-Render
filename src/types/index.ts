@@ -210,6 +210,8 @@ export interface SupportConversationSummary {
   lastMessage?: SupportMessage;
   messageCount: number;
   updatedAt: string;
+  /** True when the user sent a message the admin hasn't viewed yet. */
+  unread: boolean;
 }
 
 /* ------------------------------------------------------------------ */

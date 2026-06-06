@@ -69,12 +69,17 @@ export async function getConversationSummaries(): Promise<
   return convos
     .map<SupportConversationSummary>((c) => {
       const last = c.messages[c.messages.length - 1];
+      const readAt = c.adminReadAt ? new Date(c.adminReadAt).getTime() : 0;
+      const unread = c.messages.some(
+        (m) => !m.fromAdmin && new Date(m.createdAt).getTime() > readAt,
+      );
       return {
         userId: c.userId,
         user: authors.get(c.userId) ?? null,
         lastMessage: last ? toMessage(last) : undefined,
         messageCount: c.messages.length,
         updatedAt: c.updatedAt,
+        unread,
       };
     })
     .sort(
@@ -105,5 +110,48 @@ export async function sendMessage(input: {
     createdAt: now,
   });
   convo.updatedAt = now;
+  await supportStore.save(convos);
+}
+
+/* ----------------------------- read state ----------------------------- */
+
+/** True when the user has an admin reply newer than their last view. */
+export async function hasUnreadForUser(userId: string): Promise<boolean> {
+  const convos = await supportStore.all();
+  const convo = convos.find((c) => c.userId === userId);
+  if (!convo) return false;
+  const readAt = convo.userReadAt ? new Date(convo.userReadAt).getTime() : 0;
+  return convo.messages.some(
+    (m) => m.fromAdmin && new Date(m.createdAt).getTime() > readAt,
+  );
+}
+
+/** Number of conversations with a user message newer than the admin's last view. */
+export async function adminUnreadCount(): Promise<number> {
+  const convos = await supportStore.all();
+  return convos.reduce((n, convo) => {
+    const readAt = convo.adminReadAt ? new Date(convo.adminReadAt).getTime() : 0;
+    const hasNew = convo.messages.some(
+      (m) => !m.fromAdmin && new Date(m.createdAt).getTime() > readAt,
+    );
+    return n + (hasNew ? 1 : 0);
+  }, 0);
+}
+
+/** Mark the user's own conversation as read up to now. */
+export async function markUserRead(userId: string): Promise<void> {
+  const convos = await supportStore.all();
+  const convo = convos.find((c) => c.userId === userId);
+  if (!convo) return;
+  convo.userReadAt = new Date().toISOString();
+  await supportStore.save(convos);
+}
+
+/** Mark a single conversation as read by the admin up to now. */
+export async function markAdminRead(userId: string): Promise<void> {
+  const convos = await supportStore.all();
+  const convo = convos.find((c) => c.userId === userId);
+  if (!convo) return;
+  convo.adminReadAt = new Date().toISOString();
   await supportStore.save(convos);
 }

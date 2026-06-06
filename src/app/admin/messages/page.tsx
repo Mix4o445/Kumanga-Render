@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatRelativeTime } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export const metadata = { title: "صندوق الدعم | قارئ مانجا" };
 
@@ -45,7 +46,18 @@ export default async function AdminMessagesPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-bold text-fg transition-colors group-hover:text-accent">
+                      {convo.unread ? (
+                        <span
+                          className="size-2 shrink-0 rounded-full bg-rose-500"
+                          aria-label="رسالة غير مقروءة"
+                        />
+                      ) : null}
+                      <p
+                        className={cn(
+                          "truncate text-sm text-fg transition-colors group-hover:text-accent",
+                          convo.unread ? "font-extrabold" : "font-bold",
+                        )}
+                      >
                         {name}
                       </p>
                       <span className="shrink-0 text-[11px] text-fg-faint">

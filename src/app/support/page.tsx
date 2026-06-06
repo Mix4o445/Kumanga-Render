@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { MessagesSquare, ShieldCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
-import { getConversation } from "@/lib/support";
+import { getConversation, markUserRead } from "@/lib/support";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SupportThread } from "@/components/support/SupportThread";
 import { SupportComposer } from "@/components/support/SupportComposer";
@@ -18,6 +18,9 @@ export default async function SupportPage() {
     isAdmin(user),
     getConversation(user.id),
   ]);
+
+  // Opening the thread clears the user's unread indicator.
+  await markUserRead(user.id);
 
   return (
     <div className="mx-auto max-w-3xl">

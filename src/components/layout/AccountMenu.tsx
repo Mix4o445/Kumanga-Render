@@ -17,7 +17,15 @@ import { logoutAction } from "@/lib/actions";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/utils";
 
-export function AccountMenu({ user, isAdmin = false }: { user: AuthUser; isAdmin?: boolean }) {
+export function AccountMenu({
+  user,
+  isAdmin = false,
+  unreadMessages = false,
+}: {
+  user: AuthUser;
+  isAdmin?: boolean;
+  unreadMessages?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -39,8 +47,14 @@ export function AccountMenu({ user, isAdmin = false }: { user: AuthUser; isAdmin
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-pill border border-line bg-overlay py-1 ps-1 pe-2.5 transition-colors hover:bg-overlay-strong active:scale-95"
+        className="relative flex items-center gap-2 rounded-pill border border-line bg-overlay py-1 ps-1 pe-2.5 transition-colors hover:bg-overlay-strong active:scale-95"
       >
+        {unreadMessages ? (
+          <span
+            className="absolute -end-0.5 -top-0.5 size-3 rounded-full bg-rose-500 ring-2 ring-surface"
+            aria-label="لديك رسالة جديدة"
+          />
+        ) : null}
         <Avatar
           name={displayName}
           color={user.avatarColor}
@@ -86,10 +100,20 @@ export function AccountMenu({ user, isAdmin = false }: { user: AuthUser; isAdmin
             {isAdmin ? (
               <>
                 <MenuLink href="/admin" icon={ShieldCheck} label="لوحة المراجعة" />
-                <MenuLink href="/admin/messages" icon={MessagesSquare} label="صندوق الدعم" />
+                <MenuLink
+                  href="/admin/messages"
+                  icon={MessagesSquare}
+                  label="صندوق الدعم"
+                  badge={unreadMessages}
+                />
               </>
             ) : (
-              <MenuLink href="/support" icon={MessagesSquare} label="مراسلة الإدارة" />
+              <MenuLink
+                href="/support"
+                icon={MessagesSquare}
+                label="مراسلة الإدارة"
+                badge={unreadMessages}
+              />
             )}
             <MenuLink href="/upload" icon={Upload} label="رفع مانجا" />
             <MenuLink href="/favorites" icon={Bookmark} label="قائمة المفضلة" />
@@ -115,10 +139,12 @@ function MenuLink({
   href,
   icon: Icon,
   label,
+  badge = false,
 }: {
   href: string;
   icon: typeof User;
   label: string;
+  badge?: boolean;
 }) {
   return (
     <Link
@@ -127,6 +153,9 @@ function MenuLink({
     >
       <Icon className="size-[18px]" aria-hidden />
       {label}
+      {badge ? (
+        <span className="ms-auto size-2 shrink-0 rounded-full bg-rose-500" aria-hidden />
+      ) : null}
     </Link>
   );
 }

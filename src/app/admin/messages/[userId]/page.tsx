@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { getCurrentAdmin } from "@/lib/admin";
-import { getConversation } from "@/lib/support";
+import { getConversation, markAdminRead } from "@/lib/support";
 import { Avatar } from "@/components/ui/Avatar";
 import { SupportThread } from "@/components/support/SupportThread";
 import { SupportComposer } from "@/components/support/SupportComposer";
@@ -20,6 +20,9 @@ export default async function AdminConversationPage({
   const conversation = await getConversation(params.userId);
   // No such user at all → 404; an existing user with no messages is fine.
   if (!conversation.user && conversation.messages.length === 0) notFound();
+
+  // Opening the conversation clears its unread indicator for admins.
+  await markAdminRead(params.userId);
 
   const name =
     conversation.user?.displayName ||

@@ -204,6 +204,10 @@ export interface StoredSupportConversation {
   createdAt: string;
   updatedAt: string;
   messages: StoredSupportMessage[];
+  /** Last time the owning user opened the conversation (ISO). */
+  userReadAt?: string;
+  /** Last time an admin opened the conversation (ISO). */
+  adminReadAt?: string;
 }
 
 export const supportStore = {

@@ -10,7 +10,15 @@ import { MobileMenu } from "./MobileMenu";
 import { ThemeToggle } from "./ThemeToggle";
 import { AccountMenu } from "./AccountMenu";
 
-export function TopNav({ user, isAdmin = false }: { user: AuthUser | null; isAdmin?: boolean }) {
+export function TopNav({
+  user,
+  isAdmin = false,
+  unreadMessages = false,
+}: {
+  user: AuthUser | null;
+  isAdmin?: boolean;
+  unreadMessages?: boolean;
+}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -80,7 +88,7 @@ export function TopNav({ user, isAdmin = false }: { user: AuthUser | null; isAdm
                 رفع مانجا
               </Link>
               <ThemeToggle />
-              <AccountMenu user={user} isAdmin={isAdmin} />
+              <AccountMenu user={user} isAdmin={isAdmin} unreadMessages={unreadMessages} />
             </>
           ) : (
             <>
