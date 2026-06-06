@@ -12,7 +12,7 @@ export default async function SignupPage() {
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center py-10">
-      <Logo withWordmark={false} className="mb-6" />
+      <Logo className="mb-6 h-16" />
       <div className="w-full rounded-hero border border-line bg-surface-raised/50 p-6 sm:p-8">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-extrabold tracking-tight-display text-fg">
