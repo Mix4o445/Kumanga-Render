@@ -93,6 +93,19 @@ export default async function MangaPage({
     ? await getProfileById(manga.uploaderId)
     : null;
 
+  // Resolve display info for every chapter uploader (one lookup per id).
+  const chapterUploaderIds = Array.from(
+    new Set(chapters.map((c) => c.uploaderId).filter((x): x is string => Boolean(x))),
+  );
+  const chapterUploaderProfiles = await Promise.all(
+    chapterUploaderIds.map((id) => getProfileById(id)),
+  );
+  const uploaders: Record<string, { username: string; displayName?: string }> = {};
+  chapterUploaderIds.forEach((id, i) => {
+    const p = chapterUploaderProfiles[i];
+    if (p) uploaders[id] = { username: p.username, displayName: p.displayName };
+  });
+
   return (
     <div className="space-y-12">
       {!isApproved && canManage ? (
@@ -300,6 +313,7 @@ export default async function MangaPage({
         chapters={chapters}
         canManage={canManage}
         mangaId={manga.id}
+        uploaders={uploaders}
       />
 
       <CommentsSection

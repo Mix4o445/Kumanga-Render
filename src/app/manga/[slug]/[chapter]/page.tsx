@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, ChevronLeft, ChevronRight, List } from "lucide-react";
-import { getChapterContext } from "@/lib/db";
+import { getChapterContext, incrementMangaViews } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import { formatChapterLabel } from "@/lib/utils";
@@ -83,6 +83,7 @@ export default async function ReaderPage({
   // Try as a public reader first; if nothing's found, allow owner/admins to
   // preview pending content.
   let ctx = await getChapterContext(params.slug, number);
+  const publicView = Boolean(ctx);
   if (!ctx && (admin || user)) {
     const preview = await getChapterContext(params.slug, number, {
       includeUnapproved: true,
@@ -92,6 +93,12 @@ export default async function ReaderPage({
     }
   }
   if (!ctx) notFound();
+
+  // Count a view only for public (approved) reads, so owner/admin previews of
+  // pending content don't inflate the counter.
+  if (publicView) {
+    await incrementMangaViews(ctx.manga.id);
+  }
 
   const { manga, chapter, prev, next } = ctx;
   const pages = chapter.pages ?? [];

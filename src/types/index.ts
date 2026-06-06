@@ -41,6 +41,8 @@ export interface Chapter {
   /** Ordered page image URLs (for the reader). */
   pages?: string[];
   isRead?: boolean;
+  /** Id of the user who uploaded the chapter. */
+  uploaderId?: string;
   /** Admin review state. Absent = legacy/approved. */
   reviewStatus?: ReviewStatus;
 }

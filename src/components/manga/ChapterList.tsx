@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, ChevronLeft, Inbox, Pencil } from "lucide-react";
+import { BookOpen, ChevronLeft, Inbox, Pencil, UserRound } from "lucide-react";
 import type { Chapter } from "@/types";
 import { formatChapterLabel, formatRelativeTime } from "@/lib/utils";
 import { deleteChapterAction } from "@/lib/actions";
@@ -10,11 +10,13 @@ export function ChapterList({
   chapters,
   canManage = false,
   mangaId,
+  uploaders = {},
 }: {
   slug: string;
   chapters: Chapter[];
   canManage?: boolean;
   mangaId?: string;
+  uploaders?: Record<string, { username: string; displayName?: string }>;
 }) {
   return (
     <section id="chapters" className="scroll-mt-24">
@@ -44,9 +46,10 @@ export function ChapterList({
         <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface-raised/40">
           {chapters.map((chapter) => (
             <li key={chapter.id} className="flex items-center">
+              <div className="min-w-0 flex-1">
               <Link
                 href={`/manga/${slug}/${chapter.number}`}
-                className="group flex min-w-0 flex-1 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-overlay"
+                className="group flex min-w-0 items-center justify-between gap-4 px-4 pt-3 transition-colors hover:bg-overlay"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-overlay text-sm font-bold text-fg-muted ring-1 ring-line transition-colors group-hover:text-orange-400">
@@ -77,6 +80,25 @@ export function ChapterList({
                   />
                 </div>
               </Link>
+              {(() => {
+                const up = chapter.uploaderId
+                  ? uploaders[chapter.uploaderId]
+                  : undefined;
+                return up ? (
+                  <div className="px-4 pb-2.5 ps-16">
+                    <Link
+                      href={`/u/${encodeURIComponent(up.username)}`}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-medium text-fg-faint transition-colors hover:text-orange-400"
+                    >
+                      <UserRound className="size-3.5" aria-hidden />
+                      رفعه {up.displayName || up.username}
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="pb-2.5" />
+                );
+              })()}
+              </div>
               {canManage && mangaId ? (
                 <div className="flex shrink-0 items-center gap-1.5 pe-3">
                   <Link

@@ -37,6 +37,7 @@ function toChapter(c: StoredChapter): Chapter {
     title: c.title,
     releasedAt: c.releasedAt,
     pages: c.pages,
+    uploaderId: c.uploaderId,
     reviewStatus: c.reviewStatus,
   };
 }
@@ -389,6 +390,15 @@ export async function chapterExists(slug: string, number: number): Promise<boole
   const stored = await mangaStore.all();
   const manga = stored.find((m) => m.slug === slug);
   return Boolean(manga?.chapters.some((c) => c.number === number));
+}
+
+/** Increment a manga's view counter by one. Best-effort (no-op if missing). */
+export async function incrementMangaViews(mangaId: string): Promise<void> {
+  const stored = await mangaStore.all();
+  const manga = stored.find((m) => m.id === mangaId);
+  if (!manga) return;
+  manga.views = (manga.views ?? 0) + 1;
+  await mangaStore.save(stored);
 }
 
 /* --------------------------- edit / delete ---------------------------- */
