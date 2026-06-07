@@ -164,11 +164,28 @@ async function fileWrite<T>(key: StoreKey, data: T[]): Promise<void> {
 
 /* --------------------------- backend dispatch --------------------------- */
 
+// On serverless/managed hosts the filesystem is read-only & ephemeral, so the
+// JSON file backend can't be used — DATABASE_URL is required there. Checked at
+// call time (not module load) so `next build` doesn't fail when no DB is set.
+const isServerless = Boolean(
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME,
+);
+function assertBackend() {
+  if (isServerless && !usePg) {
+    throw new Error(
+      "DATABASE_URL must be set in production — the local JSON file store " +
+        "cannot be used on a serverless/read-only filesystem (e.g. Vercel).",
+    );
+  }
+}
+
 function readJson<T>(key: StoreKey): Promise<T[]> {
+  assertBackend();
   return usePg ? pgRead<T>(key) : fileRead<T>(key);
 }
 
 function writeJson<T>(key: StoreKey, data: T[]): Promise<void> {
+  assertBackend();
   return usePg ? pgWrite<T>(key, data) : fileWrite<T>(key, data);
 }
 

@@ -21,6 +21,19 @@ function getSecret(): string {
   const fromEnv = process.env.SESSION_SECRET;
   if (fromEnv && fromEnv.length >= 16) return fromEnv;
 
+  // Serverless/managed hosts (Vercel, etc.) have a read-only, ephemeral
+  // filesystem — never try to write a secret to disk there. Require the env
+  // var instead, and fail with a clear, actionable message.
+  const isServerless =
+    process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+  if (isServerless) {
+    throw new Error(
+      "SESSION_SECRET must be set to a string of at least 16 characters in " +
+        "production. Set it in your host's environment variables and redeploy.",
+    );
+  }
+
+  // Local dev only: cache a generated secret on disk for zero-config runs.
   const dir = process.env.DATA_DIR
     ? path.resolve(process.env.DATA_DIR)
     : path.join(process.cwd(), "data");
