@@ -49,7 +49,7 @@ export function TopNav({
   return (
     <header className="sticky top-0 z-50 h-[var(--nav-height)] border-b border-line bg-surface/80 backdrop-blur-md backdrop-saturate-150">
       <div className="mx-auto flex h-full max-w-[1600px] items-center gap-3 px-4 sm:gap-4 sm:px-6">
-        <MobileMenu />
+        <MobileMenu user={user} />
 
         <Link href="/" className="shrink-0">
           <Logo />

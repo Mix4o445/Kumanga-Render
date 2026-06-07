@@ -5,12 +5,13 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogIn, UserPlus } from "lucide-react";
 import { NAV_SECTIONS, GENRE_NAV } from "@/lib/config";
+import type { AuthUser } from "@/types";
 import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
 
-export function MobileMenu() {
+export function MobileMenu({ user }: { user: AuthUser | null }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
@@ -127,6 +128,25 @@ export function MobileMenu() {
                   </div>
                 </div>
               </div>
+
+              {!user ? (
+                <div className="space-y-2 border-t border-line px-3 py-4">
+                  <Link
+                    href="/login"
+                    className="flex items-center justify-center gap-2 rounded-pill px-4 py-2.5 text-sm font-semibold text-fg-muted ring-1 ring-line transition-colors hover:bg-overlay hover:text-fg active:scale-95"
+                  >
+                    <LogIn className="size-4" aria-hidden />
+                    تسجيل الدخول
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="flex items-center justify-center gap-2 rounded-pill bg-orange-600 px-4 py-2.5 text-sm font-bold text-white shadow-glow-orange transition-all hover:bg-orange-500 active:scale-95"
+                  >
+                    <UserPlus className="size-4" aria-hidden />
+                    إنشاء حساب
+                  </Link>
+                </div>
+              ) : null}
             </motion.aside>
           </>
               ) : null}
