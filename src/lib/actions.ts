@@ -208,6 +208,8 @@ export async function createMangaAction(
   if (genreSlugs.length === 0) return { error: "اختر تصنيفًا واحدًا على الأقل." };
   if (!(cover instanceof File) || cover.size === 0)
     return { error: "يرجى رفع صورة الغلاف." };
+  if (formData.get("agree") !== "yes")
+    return { error: "يجب الموافقة على شروط الرفع قبل النشر." };
 
   let slug: string;
   try {
@@ -259,6 +261,8 @@ export async function addChapterAction(
 
   if (!Number.isFinite(number) || number <= 0)
     return { error: "أدخل رقم فصل صحيحًا." };
+  if (formData.get("agree") !== "yes")
+    return { error: "يجب الموافقة على شروط الرفع قبل النشر." };
   if (await chapterExists(slug, number))
     return { error: "هذا الفصل موجود بالفعل." };
   if (pages.length === 0) return { error: "أضف صفحة واحدة على الأقل." };

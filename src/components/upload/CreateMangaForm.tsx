@@ -6,6 +6,7 @@ import { createMangaAction, type ActionState } from "@/lib/actions";
 import { GENRE_NAV, STATUS_META } from "@/lib/config";
 import type { MangaStatus } from "@/types";
 import { SubmitButton } from "@/components/auth/SubmitButton";
+import { UploadConditions } from "@/components/upload/UploadConditions";
 
 const inputClass =
   "w-full rounded-card border border-line bg-input px-4 py-3 text-sm text-fg outline-none transition-colors placeholder:text-fg-faint hover:border-line-strong focus:border-royal/50";
@@ -122,6 +123,8 @@ export function CreateMangaForm({ requiresReview = false }: { requiresReview?: b
           <FileInput name="banner" />
         </Field>
       </div>
+
+      <UploadConditions />
 
       <SubmitButton className="sm:w-auto sm:px-8">نشر العمل</SubmitButton>
     </form>

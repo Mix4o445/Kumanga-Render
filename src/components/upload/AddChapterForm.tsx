@@ -5,6 +5,7 @@ import { useFormState } from "react-dom";
 import { AlertCircle, ImagePlus, Clock3 } from "lucide-react";
 import { addChapterAction, type ActionState } from "@/lib/actions";
 import { SubmitButton } from "@/components/auth/SubmitButton";
+import { UploadConditions } from "@/components/upload/UploadConditions";
 
 const inputClass =
   "w-full rounded-card border border-line bg-input px-4 py-3 text-sm text-fg outline-none transition-colors placeholder:text-fg-faint hover:border-line-strong focus:border-royal/50";
@@ -85,6 +86,8 @@ export function AddChapterForm({
           />
         </label>
       </div>
+
+      <UploadConditions />
 
       <SubmitButton className="sm:w-auto sm:px-8">نشر الفصل</SubmitButton>
     </form>
