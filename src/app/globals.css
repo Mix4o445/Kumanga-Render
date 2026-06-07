@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Logo height (only `.h-14` user is the Logo): smaller on mobile, larger on PC. */
+.h-14 {
+  height: 4.5rem;
+}
+@media (min-width: 1024px) {
+  .h-14 {
+    height: 9.5rem;
+  }
+}
+
 /* ============================ THEME TOKENS ============================ *
  * Clean neutral-dark (default) and light themes with a single coral accent.
  * --------------------------------------------------------------------- */
