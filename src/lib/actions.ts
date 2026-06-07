@@ -23,6 +23,7 @@ import {
   setMangaReview,
 } from "@/lib/db";
 import { getCurrentAdmin, isAdmin } from "@/lib/admin";
+import { requestPasswordReset, resetPasswordWithToken } from "@/lib/password-reset";
 import { getProfileById, updateProfile, setUserVerified } from "@/lib/profile";
 import { addReply, createThread, isValidCategory } from "@/lib/forum";
 import {
@@ -134,6 +135,52 @@ export async function loginAction(
 export async function logoutAction(): Promise<void> {
   destroySession();
   redirect("/");
+}
+
+/* --------------------------- password reset --------------------------- */
+
+export async function requestPasswordResetAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+    return { error: "يرجى إدخال بريد إلكتروني صحيح." };
+
+  try {
+    await requestPasswordReset(email);
+  } catch {
+    // Don't surface provider errors to the client; log server-side only.
+    return { error: "تعذّر إرسال رسالة إعادة التعيين، حاول لاحقًا." };
+  }
+
+  // Always the same confirmation, whether or not the email is registered.
+  return {
+    success:
+      "إذا كان هناك حساب مرتبط بهذا البريد، فستصلك رسالة بها رابط إعادة التعيين.",
+  };
+}
+
+export async function resetPasswordAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const token = String(formData.get("token") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+
+  if (!token) return { error: "رابط إعادة التعيين غير صالح." };
+  if (password.length < 8)
+    return { error: "كلمة المرور يجب أن تكون ٨ أحرف على الأقل." };
+  if (password !== confirm) return { error: "كلمتا المرور غير متطابقتين." };
+
+  const result = await resetPasswordWithToken(token, password);
+  if (result === "expired")
+    return { error: "انتهت صلاحية رابط إعادة التعيين، اطلب رابطًا جديدًا." };
+  if (result === "invalid")
+    return { error: "رابط إعادة التعيين غير صالح أو سبق استخدامه." };
+
+  redirect("/login?reset=1");
 }
 
 /* ------------------------------- uploads ------------------------------ */

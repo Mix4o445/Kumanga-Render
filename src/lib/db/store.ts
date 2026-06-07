@@ -24,6 +24,7 @@ const KEYS = {
   support: "support",
   comments: "comments",
   ratings: "ratings",
+  passwordResets: "passwordResets",
 } as const;
 type StoreKey = (typeof KEYS)[keyof typeof KEYS];
 
@@ -83,6 +84,7 @@ const FILE_FOR: Record<StoreKey, string> = {
   support: path.join(DATA_DIR, "support.json"),
   comments: path.join(DATA_DIR, "comments.json"),
   ratings: path.join(DATA_DIR, "ratings.json"),
+  passwordResets: path.join(DATA_DIR, "password-resets.json"),
 };
 
 export interface StoredChapter {
@@ -260,4 +262,25 @@ export const commentsStore = {
 export const ratingsStore = {
   all: () => readJson<StoredRating>(KEYS.ratings),
   save: (data: StoredRating[]) => writeJson(KEYS.ratings, data),
+};
+
+/**
+ * A pending password-reset request. We store only the SHA-256 hash of the
+ * token (never the raw token), plus an expiry and a used-flag, so a leaked
+ * store row can't be replayed into a working reset link.
+ */
+export interface StoredPasswordReset {
+  /** SHA-256 hex hash of the raw token sent in the email link. */
+  tokenHash: string;
+  userId: string;
+  /** ISO-8601 expiry timestamp. */
+  expiresAt: string;
+  createdAt: string;
+  /** ISO-8601 timestamp of when the token was consumed (single-use). */
+  usedAt?: string;
+}
+
+export const passwordResetStore = {
+  all: () => readJson<StoredPasswordReset>(KEYS.passwordResets),
+  save: (data: StoredPasswordReset[]) => writeJson(KEYS.passwordResets, data),
 };

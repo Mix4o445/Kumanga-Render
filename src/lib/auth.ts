@@ -133,6 +133,37 @@ export async function verifyCredentials(
   return safeEqualHex(candidate, user.passwordHash) ? toAuthUser(user) : null;
 }
 
+/** Find a stored user by email (case-insensitive). Server-only. */
+export async function findUserByEmail(
+  email: string,
+): Promise<StoredUser | null> {
+  const emailLc = email.trim().toLowerCase();
+  if (!emailLc) return null;
+  const users = await userStore.all();
+  return users.find((u) => u.email.toLowerCase() === emailLc) ?? null;
+}
+
+/**
+ * Replace a user's password. Generates a fresh salt + hash and persists it.
+ * Returns false when the user id doesn't exist.
+ */
+export async function setUserPassword(
+  userId: string,
+  newPassword: string,
+): Promise<boolean> {
+  const users = await userStore.all();
+  const idx = users.findIndex((u) => u.id === userId);
+  if (idx === -1) return false;
+  const salt = randomBytes(16).toString("hex");
+  users[idx] = {
+    ...users[idx],
+    salt,
+    passwordHash: hashPassword(newPassword, salt),
+  };
+  await userStore.save(users);
+  return true;
+}
+
 /* ------------------------------ sessions ------------------------------ */
 
 export function createSession(userId: string): void {

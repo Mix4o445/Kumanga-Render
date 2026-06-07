@@ -33,6 +33,9 @@ Vercel does not bundle one with the repo (unlike Render's blueprint). Pick any:
    | `IMAGEKIT_PUBLIC_KEY` | from ImageKit dashboard |
    | `IMAGEKIT_URL_ENDPOINT` | e.g. `https://ik.imagekit.io/your_id` |
    | `IMAGEKIT_FOLDER` | `manga-site` (optional) |
+   | `RESEND_API_KEY` | from Resend dashboard (for password-reset emails) |
+   | `EMAIL_FROM` | verified sender, e.g. `Kumanga <noreply@yourdomain.com>` |
+   | `APP_URL` | your canonical URL, e.g. `https://your-domain.com` (for email links) |
 
 4. Click **Deploy**.
 

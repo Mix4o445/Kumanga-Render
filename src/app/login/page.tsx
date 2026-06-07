@@ -9,12 +9,13 @@ export const metadata = { title: "تسجيل الدخول | قارئ مانجا"
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { next?: string };
+  searchParams: { next?: string; reset?: string };
 }) {
   const user = await getCurrentUser();
   if (user) redirect("/");
 
   const next = searchParams.next?.startsWith("/") ? searchParams.next : "/";
+  const justReset = searchParams.reset === "1";
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center py-10">
@@ -29,7 +30,22 @@ export default async function LoginPage({
           </p>
         </div>
 
+        {justReset ? (
+          <p className="mb-4 rounded-card border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5 text-center text-sm font-medium text-emerald-400">
+            تم تحديث كلمة المرور بنجاح، يمكنك تسجيل الدخول الآن.
+          </p>
+        ) : null}
+
         <LoginForm next={next} />
+
+        <p className="mt-4 text-center text-sm">
+          <Link
+            href="/forgot-password"
+            className="font-semibold text-fg-subtle transition-colors hover:text-orange-300"
+          >
+            نسيت كلمة المرور؟
+          </Link>
+        </p>
 
         <p className="mt-6 text-center text-sm text-fg-subtle">
           ليس لديك حساب؟{" "}
