@@ -271,7 +271,7 @@ export default async function MangaPage({
                     minimumFractionDigits: 1,
                     maximumFractionDigits: 1,
                   })}
-                  <span className="text-amber-400/70">/٥</span>
+                  <span className="text-amber-400/70">/5</span>
                 </span>
               ) : (
                 <span className="rounded-pill bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-400 ring-1 ring-emerald-500/20">

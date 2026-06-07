@@ -79,7 +79,7 @@ export function StarRating({
                   minimumFractionDigits: 1,
                   maximumFractionDigits: 1,
                 })}
-                <span className="text-sm font-semibold text-fg-faint"> / ٥</span>
+                <span className="text-sm font-semibold text-fg-faint"> / 5</span>
               </p>
               <p className="mt-1 text-xs text-fg-faint">
                 {count.toLocaleString("ar")} تقييم
