@@ -47,6 +47,8 @@ function toManga(s: StoredManga): Manga {
   const approvedChapters = s.chapters.filter((c) => approved(c.reviewStatus));
   const sorted = chaptersDesc(approvedChapters);
   const latest = sorted[0];
+  // A chapter number may have several uploaded versions; count distinct numbers.
+  const distinctNumbers = new Set(approvedChapters.map((c) => c.number)).size;
   const genres = s.genreSlugs
     .map((slug) => GENRE_BY_SLUG[slug])
     .filter((g): g is Genre => Boolean(g));
@@ -63,7 +65,7 @@ function toManga(s: StoredManga): Manga {
     synopsis: s.synopsis,
     genres,
     status: s.status,
-    totalChapters: sorted.length,
+    totalChapters: distinctNumbers,
     latestChapter: latest ? toChapter(latest) : undefined,
     popularity: s.views,
     views: s.views,
@@ -218,11 +220,23 @@ export async function getChapters(
   return chaptersDesc(source).map(toChapter);
 }
 
+/** A single uploaded version of a chapter (same number, different uploader). */
+export interface ChapterVersion {
+  id: string;
+  uploaderId?: string;
+  title?: string;
+  releasedAt: string;
+  pageCount: number;
+}
+
 /** A single chapter plus its neighbours — powers the reader. */
 export async function getChapterContext(
   slug: string,
   number: number,
-  { includeUnapproved = false }: { includeUnapproved?: boolean } = {},
+  {
+    includeUnapproved = false,
+    versionId,
+  }: { includeUnapproved?: boolean; versionId?: string } = {},
 ) {
   const stored = await mangaStore.all();
   const manga = stored.find((m) => m.slug === slug);
@@ -231,14 +245,41 @@ export async function getChapterContext(
   const source = includeUnapproved
     ? manga.chapters
     : manga.chapters.filter((c) => approved(c.reviewStatus));
-  const asc = [...source].sort((a, b) => a.number - b.number);
-  const index = asc.findIndex((c) => c.number === number);
+
+  // Distinct chapter numbers (ascending) drive prev/next navigation.
+  const numbers = Array.from(new Set(source.map((c) => c.number))).sort(
+    (a, b) => a - b,
+  );
+  const index = numbers.indexOf(number);
   if (index === -1) return null;
+
+  // All uploaded versions of this chapter number, newest upload first.
+  const matches = source
+    .filter((c) => c.number === number)
+    .sort(
+      (a, b) =>
+        new Date(b.releasedAt).getTime() - new Date(a.releasedAt).getTime(),
+    );
+  if (matches.length === 0) return null;
+
+  // Pick the requested version when valid, otherwise the newest one.
+  const active =
+    (versionId && matches.find((c) => c.id === versionId)) || matches[0];
+
+  const versions: ChapterVersion[] = matches.map((c) => ({
+    id: c.id,
+    uploaderId: c.uploaderId,
+    title: c.title,
+    releasedAt: c.releasedAt,
+    pageCount: c.pages.length,
+  }));
+
   return {
     manga: toManga(manga),
-    chapter: toChapter(asc[index]),
-    prev: index > 0 ? asc[index - 1].number : null,
-    next: index < asc.length - 1 ? asc[index + 1].number : null,
+    chapter: toChapter(active),
+    prev: index > 0 ? numbers[index - 1] : null,
+    next: index < numbers.length - 1 ? numbers[index + 1] : null,
+    versions,
   };
 }
 
@@ -459,12 +500,9 @@ export async function updateChapter(
   const chapter = manga.chapters.find((c) => c.id === chapterId);
   if (!chapter) return "not-found";
 
-  if (fields.number !== undefined && fields.number !== chapter.number) {
-    if (manga.chapters.some((c) => c.id !== chapterId && c.number === fields.number)) {
-      return "duplicate";
-    }
-    chapter.number = fields.number;
-  }
+  // Multiple versions may share a number, so renumbering to an existing
+  // number is allowed (no duplicate check).
+  if (fields.number !== undefined) chapter.number = fields.number;
   if (fields.title !== undefined) chapter.title = fields.title || undefined;
 
   await mangaStore.save(stored);

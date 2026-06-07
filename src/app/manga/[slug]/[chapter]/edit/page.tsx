@@ -10,8 +10,10 @@ export const metadata = { title: "تعديل الفصل | قارئ مانجا" }
 
 export default async function EditChapterPage({
   params,
+  searchParams,
 }: {
   params: { slug: string; chapter: string };
+  searchParams: { v?: string };
 }) {
   const user = await getCurrentUser();
   const number = parseFloat(params.chapter);
@@ -21,6 +23,7 @@ export default async function EditChapterPage({
 
   const ctx = await getChapterContext(params.slug, number, {
     includeUnapproved: true,
+    versionId: searchParams.v,
   });
   if (!ctx) notFound();
 

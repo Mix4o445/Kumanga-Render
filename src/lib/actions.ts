@@ -11,7 +11,6 @@ import {
 } from "@/lib/auth";
 import {
   addChapter,
-  chapterExists,
   createManga,
   getMangaBySlug,
   getMangaById,
@@ -263,8 +262,6 @@ export async function addChapterAction(
     return { error: "أدخل رقم فصل صحيحًا." };
   if (formData.get("agree") !== "yes")
     return { error: "يجب الموافقة على شروط الرفع قبل النشر." };
-  if (await chapterExists(slug, number))
-    return { error: "هذا الفصل موجود بالفعل." };
   if (pages.length === 0) return { error: "أضف صفحة واحدة على الأقل." };
 
   const reviewStatus =

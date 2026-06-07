@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ChevronLeft, ChevronRight, List } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, List, Layers, UserRound } from "lucide-react";
 import { getChapterContext, incrementMangaViews } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
+import { getProfileById } from "@/lib/profile";
 import { formatChapterLabel } from "@/lib/utils";
 import { ChapterReader } from "@/components/manga/ChapterReader";
 import { CommentsSection } from "@/components/comments/CommentsSection";
@@ -71,22 +72,26 @@ function ChapterNav({
 
 export default async function ReaderPage({
   params,
+  searchParams,
 }: {
   params: { slug: string; chapter: string };
+  searchParams: { v?: string };
 }) {
   const number = Number(params.chapter);
   if (!Number.isFinite(number)) notFound();
 
+  const versionId = searchParams.v;
   const user = await getCurrentUser();
   const admin = await isAdmin(user);
 
   // Try as a public reader first; if nothing's found, allow owner/admins to
   // preview pending content.
-  let ctx = await getChapterContext(params.slug, number);
+  let ctx = await getChapterContext(params.slug, number, { versionId });
   const publicView = Boolean(ctx);
   if (!ctx && (admin || user)) {
     const preview = await getChapterContext(params.slug, number, {
       includeUnapproved: true,
+      versionId,
     });
     if (preview && (admin || user?.id === preview.manga.uploaderId)) {
       ctx = preview;
@@ -100,8 +105,21 @@ export default async function ReaderPage({
     await incrementMangaViews(ctx.manga.id);
   }
 
-  const { manga, chapter, prev, next } = ctx;
+  const { manga, chapter, prev, next, versions } = ctx;
   const pages = chapter.pages ?? [];
+
+  // Resolve uploader display names for the version switcher.
+  const versionUploaders: Record<string, { username: string; displayName?: string }> = {};
+  if (versions.length > 1) {
+    const ids = Array.from(
+      new Set(versions.map((v) => v.uploaderId).filter((x): x is string => Boolean(x))),
+    );
+    const profiles = await Promise.all(ids.map((id) => getProfileById(id)));
+    ids.forEach((id, i) => {
+      const p = profiles[i];
+      if (p) versionUploaders[id] = { username: p.username, displayName: p.displayName };
+    });
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -123,6 +141,40 @@ export default async function ReaderPage({
           {pages.length.toLocaleString("ar")} صفحة
         </p>
       </div>
+
+      {versions.length > 1 ? (
+        <div className="mb-6 rounded-card border border-line bg-surface-raised/40 p-4">
+          <p className="mb-2.5 flex items-center gap-2 text-sm font-bold text-fg">
+            <Layers className="size-4 shrink-0 text-orange-400" aria-hidden />
+            النسخ المتاحة ({versions.length.toLocaleString("ar")})
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {versions.map((v) => {
+              const up = v.uploaderId ? versionUploaders[v.uploaderId] : undefined;
+              const name = up ? up.displayName || up.username : "مجهول";
+              const isActive = v.id === chapter.id;
+              return (
+                <Link
+                  key={v.id}
+                  href={`/manga/${manga.slug}/${chapter.number}?v=${v.id}`}
+                  scroll={false}
+                  className={
+                    isActive
+                      ? "inline-flex items-center gap-1.5 rounded-pill border border-orange-500/50 bg-orange-500/10 px-3 py-1.5 text-xs font-bold text-orange-400"
+                      : "inline-flex items-center gap-1.5 rounded-pill border border-line bg-overlay px-3 py-1.5 text-xs font-medium text-fg-muted transition-colors hover:border-line-strong hover:text-fg"
+                  }
+                >
+                  <UserRound className="size-3.5" aria-hidden />
+                  {name}
+                  <span className="text-fg-faint">
+                    · {v.pageCount.toLocaleString("ar")} ص
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-6">
         <ChapterNav slug={manga.slug} prev={prev} next={next} />

@@ -18,6 +18,28 @@ export function ChapterList({
   mangaId?: string;
   uploaders?: Record<string, { username: string; displayName?: string }>;
 }) {
+  // Readers see one row per chapter number (newest version represents the
+  // group, with a badge counting alternative versions). Managers keep a flat
+  // list so they can edit/delete each uploaded version individually.
+  const byNumber = new Map<number, Chapter[]>();
+  for (const c of chapters) {
+    const list = byNumber.get(c.number) ?? [];
+    list.push(c);
+    byNumber.set(c.number, list);
+  }
+  const groups = Array.from(byNumber.values()).map((versions) => {
+    const sorted = [...versions].sort(
+      (a, b) =>
+        new Date(b.releasedAt).getTime() - new Date(a.releasedAt).getTime(),
+    );
+    return { rep: sorted[0], count: versions.length };
+  });
+  groups.sort((a, b) => b.rep.number - a.rep.number);
+
+  const rows = canManage
+    ? chapters.map((c) => ({ rep: c, count: 1 }))
+    : groups;
+  const distinctCount = byNumber.size;
   return (
     <section id="chapters" className="scroll-mt-24">
       <div className="mb-5 flex items-center justify-between gap-4">
@@ -28,7 +50,7 @@ export function ChapterList({
           <h2 className="text-lg font-bold tracking-tight text-fg">الفصول</h2>
         </div>
         <span className="text-sm text-fg-faint">
-          {chapters.length.toLocaleString("ar")} فصل
+          {distinctCount.toLocaleString("ar")} فصل
         </span>
       </div>
 
@@ -44,7 +66,7 @@ export function ChapterList({
         </div>
       ) : (
         <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface-raised/40">
-          {chapters.map((chapter) => (
+          {rows.map(({ rep: chapter, count }) => (
             <li key={chapter.id} className="flex items-center">
               <div className="min-w-0 flex-1">
               <Link
@@ -60,6 +82,11 @@ export function ChapterList({
                       ? `${formatChapterLabel(chapter.number)} — ${chapter.title}`
                       : formatChapterLabel(chapter.number)}
                   </span>
+                  {!canManage && count > 1 ? (
+                    <span className="shrink-0 rounded-md bg-orange-500/15 px-2 py-0.5 text-[11px] font-bold text-orange-300 ring-1 ring-orange-500/25">
+                      {count.toLocaleString("ar")} نسخ
+                    </span>
+                  ) : null}
                   {chapter.reviewStatus === "pending" ? (
                     <span className="shrink-0 rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-300 ring-1 ring-amber-500/25">
                       قيد المراجعة
@@ -102,7 +129,7 @@ export function ChapterList({
               {canManage && mangaId ? (
                 <div className="flex shrink-0 items-center gap-1.5 pe-3">
                   <Link
-                    href={`/manga/${slug}/${chapter.number}/edit`}
+                    href={`/manga/${slug}/${chapter.number}/edit?v=${chapter.id}`}
                     aria-label="تعديل الفصل"
                     title="تعديل الفصل"
                     className="grid size-9 place-items-center rounded-pill bg-overlay text-fg-muted ring-1 ring-line transition-colors hover:text-fg active:scale-95"

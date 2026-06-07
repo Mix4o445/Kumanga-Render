@@ -54,11 +54,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     await Promise.all(
       manga.map(async (m) => {
         const chapters = await getChapters(m.slug);
-        return chapters.map((c) => ({
-          url: absoluteUrl(
-            `/manga/${encodeURIComponent(m.slug)}/${c.number}`,
-          ),
-          lastModified: c.releasedAt ? new Date(c.releasedAt) : now,
+        // A number may have multiple uploaded versions — one URL per number.
+        const numbers = Array.from(new Set(chapters.map((c) => c.number)));
+        return numbers.map((number) => ({
+          url: absoluteUrl(`/manga/${encodeURIComponent(m.slug)}/${number}`),
+          lastModified: now,
           changeFrequency: "monthly" as const,
           priority: 0.6,
         }));
