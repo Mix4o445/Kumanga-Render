@@ -102,7 +102,7 @@ export function HeroCarousel({ items, isLoading = false }: HeroCarouselProps) {
         {/* Portrait cover (RTL start → right). Sharp foreground over blurred bg. */}
         <Link
           href={`/manga/${active.slug}`}
-          className="relative hidden aspect-[2/3] w-32 shrink-0 self-center overflow-hidden rounded-card shadow-panel-lg ring-1 ring-white/15 transition-transform duration-300 ease-out-soft hover:scale-[1.02] sm:block lg:w-40"
+          className="relative block aspect-[2/3] w-24 shrink-0 self-center overflow-hidden rounded-card shadow-panel-lg ring-1 ring-white/15 transition-transform duration-300 ease-out-soft hover:scale-[1.02] sm:w-32 lg:w-40"
         >
           <AnimatePresence mode="wait">
             <motion.div
