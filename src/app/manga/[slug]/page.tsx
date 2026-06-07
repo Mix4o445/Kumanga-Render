@@ -32,6 +32,7 @@ import { CommentsSection } from "@/components/comments/CommentsSection";
 import { MangaGrid } from "@/components/ui/MangaGrid";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { formatCompact } from "@/lib/utils";
+import { absoluteUrl, SITE_NAME } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -39,7 +40,40 @@ export async function generateMetadata({
   params: { slug: string };
 }) {
   const manga = await getMangaBySlug(params.slug, { includeUnapproved: true });
-  return { title: manga ? `${manga.title} | قارئ مانجا` : "العمل غير موجود" };
+  if (!manga) {
+    return { title: "العمل غير موجود", robots: { index: false, follow: false } };
+  }
+
+  const description =
+    manga.synopsis.length > 160
+      ? `${manga.synopsis.slice(0, 157)}…`
+      : manga.synopsis;
+  const path = `/manga/${encodeURIComponent(manga.slug)}`;
+  const isPublic = !manga.reviewStatus || manga.reviewStatus === "approved";
+
+  return {
+    title: manga.title,
+    description,
+    keywords: [manga.title, ...manga.genres.map((g) => g.name), "مانجا", "مانهوا"],
+    alternates: { canonical: path },
+    // Keep unapproved/pending titles out of search results.
+    robots: isPublic ? undefined : { index: false, follow: false },
+    openGraph: {
+      type: "article",
+      title: manga.title,
+      description,
+      url: absoluteUrl(path),
+      images: manga.coverImage
+        ? [{ url: manga.coverImage, alt: manga.title }]
+        : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: manga.title,
+      description,
+      images: manga.coverImage ? [manga.coverImage] : undefined,
+    },
+  };
 }
 
 function StatCard({
@@ -108,8 +142,60 @@ export default async function MangaPage({
     if (p) uploaders[id] = { username: p.username, displayName: p.displayName };
   });
 
+  // Structured data (schema.org) — helps search engines render rich results.
+  const canonicalUrl = absoluteUrl(`/manga/${encodeURIComponent(manga.slug)}`);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Book",
+    name: manga.title,
+    url: canonicalUrl,
+    description: manga.synopsis,
+    image: manga.coverImage || undefined,
+    inLanguage: "ar",
+    bookFormat: "https://schema.org/EBook",
+    genre: manga.genres.map((g) => g.name),
+    author: manga.author?.name
+      ? { "@type": "Person", name: manga.author.name }
+      : undefined,
+    datePublished: manga.year ? String(manga.year) : undefined,
+    dateModified: manga.updatedAt || undefined,
+    numberOfPages: undefined,
+    publisher: { "@type": "Organization", name: SITE_NAME },
+    aggregateRating:
+      rating.count > 0
+        ? {
+            "@type": "AggregateRating",
+            ratingValue: rating.average,
+            ratingCount: rating.count,
+            bestRating: 5,
+            worstRating: 1,
+          }
+        : undefined,
+  };
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "الرئيسية", item: absoluteUrl("/") },
+      { "@type": "ListItem", position: 2, name: "المانجا", item: absoluteUrl("/manga") },
+      { "@type": "ListItem", position: 3, name: manga.title, item: canonicalUrl },
+    ],
+  };
+
   return (
     <div className="space-y-12">
+      {isApproved ? (
+        <>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+          />
+        </>
+      ) : null}
       {!isApproved && canManage ? (
         <div
           className={
