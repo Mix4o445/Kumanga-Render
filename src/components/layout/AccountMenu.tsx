@@ -13,6 +13,8 @@ import {
   MessagesSquare,
   Globe,
   Layers,
+  BookOpen,
+  Image as ImageIcon,
 } from "lucide-react";
 import type { AuthUser } from "@/types";
 import { logoutAction } from "@/lib/actions";
@@ -103,7 +105,9 @@ export function AccountMenu({
               <>
                 <MenuLink href="/admin" icon={ShieldCheck} label="لوحة المراجعة" />
                 <MenuLink href="/admin/scraper" icon={Globe} label="سكرابر مانجا" />
+                <MenuLink href="/admin/scraper/manga" icon={BookOpen} label="سكرابر مانجا واحد" />
                 <MenuLink href="/admin/scraper/chapters" icon={Layers} label="سكرابر فصول" />
+                <MenuLink href="/admin/scraper/chapter" icon={ImageIcon} label="سكرابر فصل واحد" />
                 <MenuLink href="/admin/scraper/upload" icon={Upload} label="رفع JSON" />
                 <MenuLink
                   href="/admin/messages"
