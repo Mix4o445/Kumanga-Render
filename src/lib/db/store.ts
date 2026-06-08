@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { cache } from "react";
 import type { MangaStatus, ReviewStatus, StoredUser } from "@/types";
 
 /**
@@ -183,9 +184,20 @@ function assertBackend() {
   }
 }
 
+// Per-request read cache: React's cache() dedupes identical collection reads
+// within a single server render/request, collapsing the many .all() calls a
+// page makes (manga, users, comments…) into one DB round-trip each. Cleared
+// automatically between requests. Pages only read; server actions read then
+// write as their last step, so stale-after-write within a request isn't a
+// concern here.
+const cachedRead = cache(
+  async (key: StoreKey): Promise<unknown[]> =>
+    usePg ? pgRead(key) : fileRead(key),
+);
+
 function readJson<T>(key: StoreKey): Promise<T[]> {
   assertBackend();
-  return usePg ? pgRead<T>(key) : fileRead<T>(key);
+  return cachedRead(key) as Promise<T[]>;
 }
 
 function writeJson<T>(key: StoreKey, data: T[]): Promise<void> {
