@@ -43,3 +43,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Scraped manga data dumps (kept locally, not in repo)
+/*-rocksmanga.json
