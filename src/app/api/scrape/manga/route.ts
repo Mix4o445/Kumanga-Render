@@ -14,6 +14,7 @@ interface MangaRequest {
   overwrite?: boolean;
   cookies?: string;
   userAgent?: string;
+  maxChapters?: number;
 }
 
 export async function POST(req: Request) {
@@ -42,6 +43,11 @@ export async function POST(req: Request) {
 
     if (!manga) {
       return NextResponse.json({ error: "Failed to scrape manga from URL" }, { status: 502 });
+    }
+
+    const maxChapters = body.maxChapters ?? 200;
+    if (manga.chapters.length > maxChapters) {
+      manga.chapters = manga.chapters.slice(-maxChapters);
     }
 
     if (body.images) {

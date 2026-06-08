@@ -39,6 +39,7 @@ export function SingleMangaForm() {
   const [cookies, setCookies] = useState("");
   const [userAgent, setUserAgent] = useState("");
   const [showCookies, setShowCookies] = useState(false);
+  const [maxChapters, setMaxChapters] = useState("200");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
@@ -62,6 +63,7 @@ export function SingleMangaForm() {
           autoApprove,
           cookies: cookies || undefined,
           userAgent: userAgent || undefined,
+          maxChapters: parseInt(maxChapters) || 200,
         }),
       });
       let data: Result;
@@ -98,6 +100,17 @@ export function SingleMangaForm() {
               placeholder="https://rocksmanga.com/manga/chainsaw-man/"
             />
           </div>
+        </Field>
+
+        <Field label="عدد الفصول" hint="حد أقصى للفصول المستوردة (200 افتراضياً). قلل الرقم إذا حدث timeout">
+          <input
+            value={maxChapters}
+            onChange={(e) => setMaxChapters(e.target.value)}
+            type="number"
+            min={1}
+            max={5000}
+            className={inputClass}
+          />
         </Field>
 
         <div className="flex flex-wrap items-center gap-4">
