@@ -9,6 +9,7 @@ import {
   Clock4,
   Inbox,
   X,
+  Pin,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
@@ -149,6 +150,12 @@ export default async function CommunityPage({
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-fg transition-colors group-hover:text-accent">
+                        {thread.pinned ? (
+                          <span className="me-1.5 inline-flex items-center gap-0.5 rounded bg-accent/15 px-1.5 py-0.5 align-middle text-[10px] font-bold text-accent ring-1 ring-accent/30">
+                            <Pin className="size-3" aria-hidden />
+                            مثبّت
+                          </span>
+                        ) : null}
                         {thread.title}
                       </p>
                       <p className="truncate text-xs text-fg-faint">

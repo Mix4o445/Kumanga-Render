@@ -97,6 +97,7 @@ function toSummary(
     createdAt: t.createdAt,
     updatedAt: lastActivity(t),
     replyCount: t.replies.length,
+    pinned: Boolean(t.pinned),
   };
 }
 
@@ -136,7 +137,9 @@ export async function getThreads(options?: {
     list = list.filter((t) => t.categoryId === options.categoryId);
   }
   list.sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    (a, b) =>
+      Number(b.pinned) - Number(a.pinned) ||
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   );
   return options?.limit ? list.slice(0, options.limit) : list;
 }
@@ -209,9 +212,19 @@ export async function addReply(input: {
 }
 
 /**
- * Delete a thread (and all its replies). Allowed for the thread's author or an
- * admin. Returns false when missing or unauthorized.
+ * Pin or unpin a thread (admin moderation). Returns false when not found.
  */
+export async function setThreadPinned(
+  threadId: string,
+  pinned: boolean,
+): Promise<boolean> {
+  const threads = await forumStore.all();
+  const thread = threads.find((t) => t.id === threadId);
+  if (!thread) return false;
+  thread.pinned = pinned;
+  await forumStore.save(threads);
+  return true;
+}
 export async function deleteThread(
   threadId: string,
   userId: string,

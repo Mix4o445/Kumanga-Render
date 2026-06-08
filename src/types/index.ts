@@ -172,6 +172,8 @@ export interface ForumThreadSummary {
   /** ISO-8601 of the most recent activity (thread or last reply). */
   updatedAt: string;
   replyCount: number;
+  /** Admin-pinned threads appear first and show a badge. */
+  pinned?: boolean;
 }
 
 /** A full thread with its replies (detail view). */

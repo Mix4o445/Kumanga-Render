@@ -24,7 +24,7 @@ import {
 import { getCurrentAdmin, isAdmin } from "@/lib/admin";
 import { requestPasswordReset, resetPasswordWithToken } from "@/lib/password-reset";
 import { getProfileById, updateProfile, setUserVerified } from "@/lib/profile";
-import { addReply, createThread, isValidCategory, deleteThread, deleteReply } from "@/lib/forum";
+import { addReply, createThread, isValidCategory, deleteThread, deleteReply, setThreadPinned } from "@/lib/forum";
 import {
   sendMessage as sendSupportMessage,
   markUserRead,
@@ -845,6 +845,17 @@ export async function deleteReplyAction(formData: FormData): Promise<void> {
   const replyId = String(formData.get("replyId") ?? "").trim();
   if (!threadId || !replyId) return;
   await deleteReply(threadId, replyId, user.id, await isAdmin(user));
+  revalidatePath(`/community/${threadId}`);
+  revalidatePath("/community");
+}
+
+/** Pin or unpin a thread (admin only). */
+export async function setThreadPinnedAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const threadId = String(formData.get("threadId") ?? "").trim();
+  const pinned = String(formData.get("pinned") ?? "") === "yes";
+  if (!threadId) return;
+  await setThreadPinned(threadId, pinned);
   revalidatePath(`/community/${threadId}`);
   revalidatePath("/community");
 }

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, MessageSquare, Clock4, MessagesSquare } from "lucide-react";
+import { ArrowRight, MessageSquare, Clock4, MessagesSquare, Pin } from "lucide-react";
 import type { ForumAuthor } from "@/types";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import { getThreadById, getCategory } from "@/lib/forum";
-import { deleteThreadAction, deleteReplyAction } from "@/lib/actions";
+import { deleteThreadAction, deleteReplyAction, setThreadPinnedAction } from "@/lib/actions";
 import { DeleteButton } from "@/components/manga/DeleteButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { UserBadge } from "@/components/ui/UserBadge";
@@ -105,6 +105,12 @@ export default async function ThreadPage({
             {category.name}
           </span>
         ) : null}
+        {thread.pinned ? (
+          <span className="mb-3 ms-2 inline-flex items-center gap-1 rounded-md bg-accent/15 px-2.5 py-0.5 text-xs font-bold text-accent ring-1 ring-accent/30">
+            <Pin className="size-3" aria-hidden />
+            مثبّت
+          </span>
+        ) : null}
         <h1 className="text-xl font-extrabold leading-snug tracking-tight text-fg sm:text-2xl">
           {thread.title}
         </h1>
@@ -114,14 +120,33 @@ export default async function ThreadPage({
         <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-fg-muted">
           {thread.body}
         </p>
-        {canDeleteThread ? (
-          <div className="mt-4 flex justify-end border-t border-line pt-3">
-            <DeleteButton
-              action={deleteThreadAction}
-              fields={{ threadId: thread.id }}
-              label="حذف النقاش"
-              confirmMessage="هل أنت متأكد من حذف هذا النقاش وكل ردوده؟ لا يمكن التراجع."
-            />
+        {admin || canDeleteThread ? (
+          <div className="mt-4 flex items-center justify-end gap-2 border-t border-line pt-3">
+            {admin ? (
+              <form action={setThreadPinnedAction}>
+                <input type="hidden" name="threadId" value={thread.id} />
+                <input type="hidden" name="pinned" value={thread.pinned ? "no" : "yes"} />
+                <button
+                  type="submit"
+                  className={
+                    thread.pinned
+                      ? "inline-flex items-center gap-1.5 rounded-pill bg-accent/15 px-3 py-2 text-xs font-bold text-accent ring-1 ring-accent/30 transition-colors hover:bg-accent/25 active:scale-95"
+                      : "inline-flex items-center gap-1.5 rounded-pill bg-overlay px-3 py-2 text-xs font-bold text-fg-muted ring-1 ring-line transition-colors hover:text-fg active:scale-95"
+                  }
+                >
+                  <Pin className="size-4" aria-hidden />
+                  {thread.pinned ? "إلغاء التثبيت" : "تثبيت"}
+                </button>
+              </form>
+            ) : null}
+            {canDeleteThread ? (
+              <DeleteButton
+                action={deleteThreadAction}
+                fields={{ threadId: thread.id }}
+                label="حذف النقاش"
+                confirmMessage="هل أنت متأكد من حذف هذا النقاش وكل ردوده؟ لا يمكن التراجع."
+              />
+            ) : null}
           </div>
         ) : null}
       </article>

@@ -140,6 +140,8 @@ export interface StoredThread {
   /** Bumped whenever a reply is added (drives "latest activity"). */
   updatedAt: string;
   replies: StoredReply[];
+  /** Admin-pinned threads sort above the rest and show a badge. */
+  pinned?: boolean;
 }
 
 async function ensureDir() {
