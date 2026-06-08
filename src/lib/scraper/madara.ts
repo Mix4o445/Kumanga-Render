@@ -419,6 +419,38 @@ export async function scrapeMangaDetail(
     }
   }
 
+  // Fallback: extract chapter links from #init-links (sites that load chapters via AJAX)
+  if (chapters.length === 0) {
+    const initLinks = $("#init-links a[href]");
+    if (initLinks.length >= 2) {
+      const firstUrl = $(initLinks[0]).attr("href") || "";
+      const lastUrl = $(initLinks[1]).attr("href") || "";
+      const firstMatch = firstUrl.match(/(\d+)\/?$/);
+      const lastMatch = lastUrl.match(/(\d+)\/?$/);
+      if (firstMatch && lastMatch) {
+        const firstNum = parseInt(firstMatch[1]);
+        const lastNum = parseInt(lastMatch[1]);
+        const min = Math.min(firstNum, lastNum);
+        const max = Math.max(firstNum, lastNum);
+        const pad = firstMatch[1].length;
+        const origin = new URL(url).origin;
+        const slug = url.replace(/\/+$/, "").split("/").pop() || "";
+        const seenUrls = new Set<string>();
+        for (let n = min; n <= max; n++) {
+          const padded = String(n).padStart(pad, "0");
+          const chUrl = `${origin}/manga/${slug}/${padded}/`;
+          if (seenUrls.has(chUrl)) continue;
+          seenUrls.add(chUrl);
+          chapters.push({
+            number: n,
+            title: undefined,
+            url: chUrl,
+          });
+        }
+      }
+    }
+  }
+
   // Fallback: extract chapter links from #manga-page (WP Fire / non-standard themes)
   if (chapters.length === 0) {
     const slug = url.replace(/\/+$/, "").split("/").pop() || "";
