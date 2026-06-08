@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   MessagesSquare,
   Globe,
+  Layers,
 } from "lucide-react";
 import type { AuthUser } from "@/types";
 import { logoutAction } from "@/lib/actions";
@@ -102,6 +103,7 @@ export function AccountMenu({
               <>
                 <MenuLink href="/admin" icon={ShieldCheck} label="لوحة المراجعة" />
                 <MenuLink href="/admin/scraper" icon={Globe} label="سكرابر مانجا" />
+                <MenuLink href="/admin/scraper/chapters" icon={Layers} label="سكرابر فصول" />
                 <MenuLink
                   href="/admin/messages"
                   icon={MessagesSquare}

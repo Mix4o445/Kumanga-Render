@@ -152,7 +152,7 @@ async function tryApi(baseUrl: string): Promise<{ available: boolean; pages?: nu
 /**
  * Scrape a manga detail page and extract all metadata + chapter list.
  */
-async function scrapeMangaDetail(url: string, headers?: Record<string, string>): Promise<ScrapedManga> {
+export async function scrapeMangaDetail(url: string, headers?: Record<string, string>): Promise<ScrapedManga> {
   const html = await fetchWithRetry(url, 3, headers);
   const $ = cheerio.load(html);
 
@@ -245,7 +245,7 @@ async function scrapeMangaDetail(url: string, headers?: Record<string, string>):
 /**
  * Scrape a chapter page to extract image URLs.
  */
-async function scrapeChapterPages(url: string, headers?: Record<string, string>): Promise<string[]> {
+export async function scrapeChapterPages(url: string, headers?: Record<string, string>): Promise<string[]> {
   const html = await fetchWithRetry(url, 3, headers);
   const $ = cheerio.load(html);
 
@@ -408,6 +408,81 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
     stats: {
       totalManga: allManga.length,
       totalChapters,
+      totalPages,
+      durationMs: Date.now() - startTime,
+    },
+  };
+}
+
+export interface ChaptersScrapeOptions {
+  /** Full URL to the Madara manga detail page */
+  mangaUrl: string;
+  /** Whether to scrape chapter page images */
+  scrapeImages?: boolean;
+  /** Concurrency for scraping chapter pages */
+  concurrency?: number;
+  /** Delay between requests in ms */
+  delay?: number;
+  /** Custom headers */
+  headers?: Record<string, string>;
+}
+
+export interface ChaptersScrapeResult {
+  title: string;
+  slug: string;
+  chapters: ScrapedChapter[];
+  errors: { url: string; error: string }[];
+  stats: {
+    totalChapters: number;
+    totalPages: number;
+    durationMs: number;
+  };
+}
+
+/**
+ * Scrape chapters from a single Madara manga detail page.
+ * Optionally scrapes page images for each chapter.
+ */
+export async function scrapeMadaraChapters(
+  options: ChaptersScrapeOptions,
+): Promise<ChaptersScrapeResult> {
+  const {
+    mangaUrl,
+    scrapeImages = false,
+    concurrency = 3,
+    delay = 1000,
+    headers,
+  } = options;
+
+  const startTime = Date.now();
+  const errors: { url: string; error: string }[] = [];
+
+  const manga = await scrapeMangaDetail(mangaUrl, headers);
+
+  if (scrapeImages) {
+    const scrapeOne = async (ch: ScrapedChapter): Promise<ScrapedChapter> => {
+      try {
+        ch.pageImages = await scrapeChapterPages(ch.url, headers);
+      } catch (err) {
+        errors.push({ url: ch.url, error: String(err) });
+      }
+      return ch;
+    };
+    manga.chapters = await mapConcurrent(manga.chapters, scrapeOne, concurrency);
+  }
+
+  const totalPages = manga.chapters.reduce(
+    (s, c) => s + (c.pageImages?.length || 0),
+    0,
+  );
+
+  return {
+    title: manga.title,
+    slug: manga.slug,
+    chapters: manga.chapters,
+    errors,
+    stats: {
+      totalChapters: manga.chapters.length,
       totalPages,
       durationMs: Date.now() - startTime,
     },

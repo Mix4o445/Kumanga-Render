@@ -161,3 +161,85 @@ export async function importScrapedMangaDryRun(
 
   return { wouldImport, wouldSkip, chaptersToImport, genreSummary };
 }
+
+export interface ImportChaptersResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+/**
+ * Import scraped chapters into an existing manga by slug.
+ * Skips chapters that already exist (same number).
+ */
+export async function importScrapedChapters(
+  slug: string,
+  chapters: ScrapedChapter[],
+  options: {
+    autoApprove?: boolean;
+    overwrite?: boolean;
+  } = {},
+): Promise<ImportChaptersResult> {
+  const { autoApprove = true, overwrite = false } = options;
+  const reviewStatus = autoApprove ? undefined : "pending";
+
+  const stored = await mangaStore.all();
+  const manga = stored.find((m) => m.slug === slug);
+  if (!manga) {
+    return { imported: 0, skipped: chapters.length, errors: [`Manga "${slug}" not found`] };
+  }
+
+  const existingNumbers = new Set(manga.chapters.map((c) => c.number));
+  const errors: string[] = [];
+  let imported = 0;
+  let skipped = 0;
+
+  for (const ch of chapters) {
+    try {
+      if (!overwrite && existingNumbers.has(ch.number)) {
+        skipped++;
+        continue;
+      }
+
+      if (overwrite) {
+        const idx = manga.chapters.findIndex((c) => c.number === ch.number);
+        if (idx !== -1) {
+          manga.chapters[idx] = {
+            id: manga.chapters[idx].id,
+            mangaId: manga.id,
+            number: ch.number,
+            title: ch.title || undefined,
+            releasedAt: manga.chapters[idx].releasedAt,
+            pages: ch.pageImages || [],
+            uploaderId: "scraper",
+            reviewStatus,
+          };
+          imported++;
+          continue;
+        }
+      }
+
+      manga.chapters.push({
+        id: randomUUID(),
+        mangaId: manga.id,
+        number: ch.number,
+        title: ch.title || undefined,
+        releasedAt: new Date().toISOString(),
+        pages: ch.pageImages || [],
+        uploaderId: "scraper",
+        reviewStatus,
+      });
+      existingNumbers.add(ch.number);
+      imported++;
+    } catch (err) {
+      errors.push(`Chapter ${ch.number}: ${err}`);
+    }
+  }
+
+  if (imported > 0) {
+    if (autoApprove) manga.updatedAt = new Date().toISOString();
+    await mangaStore.save(stored);
+  }
+
+  return { imported, skipped, errors };
+}
