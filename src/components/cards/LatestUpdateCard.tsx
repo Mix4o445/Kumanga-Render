@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { MangaUpdate } from "@/types";
 import { formatChapterLabel, formatRelativeTime } from "@/lib/utils";
+import { ikImage } from "@/lib/img";
 
 export function LatestUpdateCard({ update }: { update: MangaUpdate }) {
   const { manga, chapter } = update;
@@ -50,7 +51,7 @@ export function LatestUpdateCard({ update }: { update: MangaUpdate }) {
         className="relative aspect-[2/3] w-20 shrink-0 self-stretch overflow-hidden rounded-md ring-1 ring-line"
       >
         <Image
-          src={manga.coverImage}
+          src={ikImage(manga.coverImage, { width: 160 })}
           alt={manga.title}
           fill
           sizes="80px"

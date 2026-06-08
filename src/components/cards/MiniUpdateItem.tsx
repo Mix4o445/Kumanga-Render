@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { MangaUpdate } from "@/types";
 import { formatChapterLabel } from "@/lib/utils";
+import { ikImage } from "@/lib/img";
 
 export function MiniUpdateItem({ update }: { update: MangaUpdate }) {
   const { manga, chapter, hasUnread } = update;
@@ -13,7 +14,7 @@ export function MiniUpdateItem({ update }: { update: MangaUpdate }) {
     >
       <div className="relative size-10 shrink-0 overflow-hidden rounded-lg ring-1 ring-line">
         <Image
-          src={manga.coverImage}
+          src={ikImage(manga.coverImage, { width: 80 })}
           alt={manga.title}
           fill
           sizes="40px"

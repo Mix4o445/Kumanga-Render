@@ -33,6 +33,7 @@ import { MangaGrid } from "@/components/ui/MangaGrid";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { formatCompact } from "@/lib/utils";
 import { absoluteUrl, SITE_NAME } from "@/lib/seo";
+import { ikImage } from "@/lib/img";
 
 export async function generateMetadata({
   params,
@@ -234,7 +235,7 @@ export default async function MangaPage({
         {/* Banner */}
         <div className="relative h-44 overflow-hidden rounded-hero border border-line sm:h-64">
           <Image
-            src={banner}
+            src={ikImage(banner, { width: 1100, quality: 70 })}
             alt={manga.title}
             fill
             priority
@@ -248,7 +249,7 @@ export default async function MangaPage({
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:px-6">
           <div className="relative -mt-16 aspect-[2/3] w-32 shrink-0 overflow-hidden rounded-card bg-surface-raised shadow-card ring-1 ring-line sm:-mt-24 sm:w-44">
             <Image
-              src={manga.coverImage}
+              src={ikImage(manga.coverImage, { width: 352 })}
               alt={manga.title}
               fill
               sizes="176px"

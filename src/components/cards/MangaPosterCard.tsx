@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 import type { Manga } from "@/types";
 import { formatChapterLabel, formatRating } from "@/lib/utils";
+import { ikImage } from "@/lib/img";
 
 export function MangaPosterCard({ manga }: { manga: Manga }) {
   const chapterNumber = manga.latestChapter?.number ?? manga.totalChapters;
@@ -14,7 +15,7 @@ export function MangaPosterCard({ manga }: { manga: Manga }) {
     >
       <article className="relative aspect-[2/3] overflow-hidden rounded-card bg-surface-raised shadow-card ring-1 ring-line transition-all duration-200 ease-out-soft group-hover:-translate-y-1 group-hover:shadow-card-hover group-hover:ring-line-strong group-focus-visible:-translate-y-1">
         <Image
-          src={manga.coverImage}
+          src={ikImage(manga.coverImage, { width: 360 })}
           alt={manga.title}
           fill
           sizes="(max-width: 768px) 40vw, 180px"

@@ -15,6 +15,7 @@ import {
 import type { Manga } from "@/types";
 import { STATUS_META } from "@/lib/config";
 import { formatRating } from "@/lib/utils";
+import { ikImage } from "@/lib/img";
 import { HeroSkeleton } from "@/components/ui/skeletons";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -83,7 +84,7 @@ export function HeroCarousel({ items, isLoading = false }: HeroCarouselProps) {
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
           <Image
-            src={banner}
+            src={ikImage(banner, { width: 64, quality: 30, blur: 30 })}
             alt=""
             fill
             priority
@@ -114,7 +115,7 @@ export function HeroCarousel({ items, isLoading = false }: HeroCarouselProps) {
               transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             >
               <Image
-                src={active.coverImage}
+                src={ikImage(active.coverImage, { width: 320 })}
                 alt={active.title}
                 fill
                 priority
