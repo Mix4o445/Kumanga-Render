@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentAdmin } from "@/lib/admin";
+import { mangaStore } from "@/lib/db/store";
 import { scrapeMadara } from "@/lib/scraper/madara";
 import { importScrapedManga, importScrapedMangaDryRun } from "@/lib/scraper/importer";
 
@@ -39,9 +40,14 @@ export async function POST(req: Request) {
   try {
     const startTime = Date.now();
 
+    // Only scrape manga that don't already exist in the store
+    const stored = await mangaStore.all();
+    const existingSlugs = new Set(stored.map((m) => m.slug));
+
     const result = await scrapeMadara({
       baseUrl: body.url,
       maxPages: body.pages ?? 1,
+      skipExistingSlugs: existingSlugs,
       concurrency: body.concurrency ?? 3,
       scrapeChapterPages: body.images ?? false,
       delay: body.delay ?? 1500,

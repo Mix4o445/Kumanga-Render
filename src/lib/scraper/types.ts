@@ -41,6 +41,8 @@ export interface ScraperOptions {
   cookies?: string;
   /** User-Agent matching your browser (required when using cookies) */
   userAgent?: string;
+  /** Set of slugs to skip (already exist in store) */
+  skipExistingSlugs?: Set<string>;
 }
 
 export interface ScrapeResult {

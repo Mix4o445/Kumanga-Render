@@ -539,6 +539,7 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
     headers: customHeaders,
     cookies,
     userAgent,
+    skipExistingSlugs,
   } = options;
 
   const headers: Record<string, string> | undefined = userAgent
@@ -553,7 +554,7 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
 
   // Gather all manga URLs from listing pages
   console.log(`🔍 Discovering manga from ${base}${listPath} ...`);
-  const mangaEntries: { url: string; title: string }[] = [];
+  let mangaEntries: { url: string; title: string }[] = [];
 
   let page = 1;
   let hasMore = true;
@@ -603,6 +604,17 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
       console.log(`  ✅ Found ${sitemapEntries.length} manga via sitemap`);
       mangaEntries.push(...sitemapEntries);
     }
+  }
+
+  // Filter out manga that already exist in the store
+  if (skipExistingSlugs && skipExistingSlugs.size > 0) {
+    const before = mangaEntries.length;
+    mangaEntries = mangaEntries.filter((e) => {
+      const slug = e.url.replace(/\/+$/, "").split("/").pop() || "";
+      return !skipExistingSlugs.has(slug);
+    });
+    const skipped = before - mangaEntries.length;
+    if (skipped > 0) console.log(`  ⏭️  Skipped ${skipped} existing manga`);
   }
 
   // Scrape each manga detail page
