@@ -14,6 +14,7 @@ interface ChaptersRequest {
   dryRun?: boolean;
   autoApprove?: boolean;
   overwrite?: boolean;
+  cookies?: string;
 }
 
 export async function POST(req: Request) {
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
       scrapeImages: body.images ?? false,
       concurrency: body.concurrency ?? 3,
       delay: body.delay ?? 1500,
+      cookies: body.cookies,
     });
 
     if (body.dryRun) {

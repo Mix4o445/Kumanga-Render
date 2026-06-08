@@ -8,10 +8,18 @@ const DEFAULT_HEADERS = {
   "Accept-Language": "en-US,en;q=0.5",
 };
 
-async function fetchWithRetry(url: string, retries = 3, headers?: Record<string, string>): Promise<string> {
+async function fetchWithRetry(
+  url: string,
+  retries = 3,
+  headers?: Record<string, string>,
+  cookies?: string,
+): Promise<string> {
+  const merged: Record<string, string> = { ...DEFAULT_HEADERS, ...headers };
+  if (cookies) merged.Cookie = cookies;
+
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      const res = await fetch(url, { headers: { ...DEFAULT_HEADERS, ...headers } });
+      const res = await fetch(url, { headers: merged });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.text();
     } catch (err) {
@@ -152,8 +160,12 @@ async function tryApi(baseUrl: string): Promise<{ available: boolean; pages?: nu
 /**
  * Scrape a manga detail page and extract all metadata + chapter list.
  */
-export async function scrapeMangaDetail(url: string, headers?: Record<string, string>): Promise<ScrapedManga> {
-  const html = await fetchWithRetry(url, 3, headers);
+export async function scrapeMangaDetail(
+  url: string,
+  headers?: Record<string, string>,
+  cookies?: string,
+): Promise<ScrapedManga> {
+  const html = await fetchWithRetry(url, 3, headers, cookies);
   const $ = cheerio.load(html);
 
   const title = cleanText($(".post-title, .entry-title, h1")).split("\n")[0].trim()
@@ -245,8 +257,12 @@ export async function scrapeMangaDetail(url: string, headers?: Record<string, st
 /**
  * Scrape a chapter page to extract image URLs.
  */
-export async function scrapeChapterPages(url: string, headers?: Record<string, string>): Promise<string[]> {
-  const html = await fetchWithRetry(url, 3, headers);
+export async function scrapeChapterPages(
+  url: string,
+  headers?: Record<string, string>,
+  cookies?: string,
+): Promise<string[]> {
+  const html = await fetchWithRetry(url, 3, headers, cookies);
   const $ = cheerio.load(html);
 
   const images: string[] = [];
@@ -306,6 +322,7 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
     delay = 1000,
     listPath = "/manga/",
     headers,
+    cookies,
   } = options;
 
   const startTime = Date.now();
@@ -326,7 +343,7 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
     console.log(`  📄 Listing page ${page} → ${pageUrl}`);
 
     try {
-      const html = await fetchWithRetry(pageUrl, 3, headers);
+      const html = await fetchWithRetry(pageUrl, 3, headers, cookies);
       const entries = extractMangaUrls(html, base);
       const existingSlugs = new Set(mangaEntries.map((e) => e.url));
       const newEntries = entries.filter((e) => !existingSlugs.has(e.url));
@@ -363,7 +380,7 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
 
   const scrapeOne = async (entry: { url: string; title: string }): Promise<ScrapedManga | null> => {
     try {
-      const manga = await scrapeMangaDetail(entry.url, headers);
+      const manga = await scrapeMangaDetail(entry.url, headers, cookies);
       await sleep(delay);
       return manga;
     } catch (err) {
@@ -385,7 +402,7 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
       const chEntries = manga.chapters;
       const scrapeChapter = async (ch: ScrapedChapter): Promise<ScrapedChapter> => {
         try {
-          ch.pageImages = await scrapeChapterPages(ch.url, headers);
+          ch.pageImages = await scrapeChapterPages(ch.url, headers, cookies);
           await sleep(delay / 2);
         } catch (err) {
           errors.push({ url: ch.url, error: String(err) });
@@ -425,6 +442,8 @@ export interface ChaptersScrapeOptions {
   delay?: number;
   /** Custom headers */
   headers?: Record<string, string>;
+  /** Raw cookie string for bypassing Cloudflare */
+  cookies?: string;
 }
 
 export interface ChaptersScrapeResult {
@@ -452,17 +471,18 @@ export async function scrapeMadaraChapters(
     concurrency = 3,
     delay = 1000,
     headers,
+    cookies,
   } = options;
 
   const startTime = Date.now();
   const errors: { url: string; error: string }[] = [];
 
-  const manga = await scrapeMangaDetail(mangaUrl, headers);
+  const manga = await scrapeMangaDetail(mangaUrl, headers, cookies);
 
   if (scrapeImages) {
     const scrapeOne = async (ch: ScrapedChapter): Promise<ScrapedChapter> => {
       try {
-        ch.pageImages = await scrapeChapterPages(ch.url, headers);
+        ch.pageImages = await scrapeChapterPages(ch.url, headers, cookies);
       } catch (err) {
         errors.push({ url: ch.url, error: String(err) });
       }

@@ -46,6 +46,8 @@ export function ScraperForm() {
   const [scrapeImages, setScrapeImages] = useState(false);
   const [dryRun, setDryRun] = useState(false);
   const [autoApprove, setAutoApprove] = useState(true);
+  const [cookies, setCookies] = useState("");
+  const [showCookies, setShowCookies] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScrapeResult | null>(null);
   const [error, setError] = useState("");
@@ -71,6 +73,7 @@ export function ScraperForm() {
           images: scrapeImages,
           dryRun,
           autoApprove,
+          cookies: cookies || undefined,
         }),
       });
       const data = await res.json();
@@ -142,6 +145,36 @@ export function ScraperForm() {
               تجربة فقط
             </label>
           </div>
+        </div>
+
+        <div className="border-t border-line pt-4">
+          <button
+            type="button"
+            onClick={() => setShowCookies(!showCookies)}
+            className="mb-3 flex items-center gap-2 text-xs font-bold text-fg-muted transition-colors hover:text-fg"
+          >
+            {showCookies ? "▼" : "▶"} {showCookies ? "إخفاء" : "إضافة"} كوكيز (لـ Cloudflare)
+          </button>
+
+          {showCookies ? (
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-fg-muted">
+                الكوكيز
+              </label>
+              <textarea
+                value={cookies}
+                onChange={(e) => setCookies(e.target.value)}
+                className="w-full rounded-card border border-line bg-input px-4 py-3 text-xs text-fg outline-none transition-colors placeholder:text-fg-faint hover:border-line-strong focus:border-royal/50"
+                rows={3}
+                dir="ltr"
+                placeholder="افتح الموقع في المتصفح → F12 → Application → Cookies → انسخ الكوكيز والصقها هنا"
+              />
+              <p className="text-xs text-fg-faint">
+                افتح الموقع في متصفحك، اذهب إلى أدوات المطور (F12) &gt; Network &gt; اختر أي طلب &gt; انسخ
+                قيمة Cookie Header والصقها هنا.
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">

@@ -15,6 +15,7 @@ interface ScrapeRequest {
   dryRun?: boolean;
   autoApprove?: boolean;
   overwrite?: boolean;
+  cookies?: string;
 }
 
 export async function POST(req: Request) {
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
       scrapeChapterPages: body.images ?? false,
       delay: body.delay ?? 1500,
       listPath: body.listPath ?? "/manga/",
+      cookies: body.cookies,
     });
 
     // Send progress update back

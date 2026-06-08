@@ -37,6 +37,8 @@ export interface ScraperOptions {
   listPath?: string;
   /** Custom headers to send */
   headers?: Record<string, string>;
+  /** Raw cookie string (e.g. "key=value; key2=value2") for bypassing Cloudflare */
+  cookies?: string;
 }
 
 export interface ScrapeResult {
