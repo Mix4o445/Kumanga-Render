@@ -122,7 +122,8 @@ export default async function ReaderPage({
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="space-y-6">
+      <div className="mx-auto max-w-3xl">
       {/* Header */}
       <div className="mb-6">
         <Link
@@ -179,15 +180,16 @@ export default async function ReaderPage({
       <div className="mb-6">
         <ChapterNav slug={manga.slug} prev={prev} next={next} />
       </div>
+      </div>
 
-      {/* Pages */}
+      {/* Pages — width controlled by the reader settings */}
       <ChapterReader pages={pages} />
 
-      <div className="mt-6">
+      <div className="mx-auto mt-6 max-w-3xl">
         <ChapterNav slug={manga.slug} prev={prev} next={next} />
       </div>
 
-      <div className="mt-10">
+      <div className="mx-auto mt-10 max-w-3xl">
         <CommentsSection
           targetType="chapter"
           targetId={chapter.id}

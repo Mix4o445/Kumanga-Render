@@ -14,11 +14,23 @@ import { useCallback, useEffect, useState } from "react";
 export type ThemeMode = "dark" | "light" | "system";
 export type ReaderMode = "vertical" | "horizontal";
 export type ReaderQuality = "high" | "medium" | "data";
+/** How each page image is scaled. */
+export type ReaderFit = "width" | "height" | "original";
+/** Spacing between pages in vertical mode. */
+export type ReaderGap = "none" | "small" | "large";
+/** Background behind the pages. */
+export type ReaderBg = "dark" | "gray" | "sepia" | "light";
+/** Max width of the reading column. */
+export type ReaderWidth = "narrow" | "medium" | "wide" | "full";
 
 export const SETTINGS_KEYS = {
   theme: "theme",
   readerMode: "reader:mode",
   readerQuality: "reader:quality",
+  readerFit: "reader:fit",
+  readerGap: "reader:gap",
+  readerBg: "reader:bg",
+  readerWidth: "reader:width",
   notifyUpdates: "notify:updates",
   notifyReplies: "notify:replies",
 } as const;

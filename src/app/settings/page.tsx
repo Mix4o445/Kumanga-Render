@@ -17,6 +17,10 @@ import {
   useTheme,
   type ReaderMode,
   type ReaderQuality,
+  type ReaderFit,
+  type ReaderGap,
+  type ReaderBg,
+  type ReaderWidth,
   type ThemeMode,
 } from "@/lib/clientSettings";
 import { cn } from "@/lib/utils";
@@ -133,6 +137,13 @@ export default function SettingsPage() {
     SETTINGS_KEYS.readerQuality,
     "high",
   );
+  const [fit, setFit] = useStored<ReaderFit>(SETTINGS_KEYS.readerFit, "width");
+  const [gap, setGap] = useStored<ReaderGap>(SETTINGS_KEYS.readerGap, "none");
+  const [bg, setBg] = useStored<ReaderBg>(SETTINGS_KEYS.readerBg, "dark");
+  const [readerWidth, setReaderWidth] = useStored<ReaderWidth>(
+    SETTINGS_KEYS.readerWidth,
+    "medium",
+  );
   const [notifyUpdates, setNotifyUpdates] = useStoredBool(
     SETTINGS_KEYS.notifyUpdates,
     true,
@@ -207,6 +218,52 @@ export default function SettingsPage() {
                 { value: "high", label: "عالية" },
                 { value: "medium", label: "متوسطة" },
                 { value: "data", label: "توفير" },
+              ]}
+            />
+          </Row>
+          <Row label="ملاءمة الصفحة" description="طريقة عرض الصورة داخل الشاشة.">
+            <SegmentedControl<ReaderFit>
+              value={fit}
+              onChange={setFit}
+              options={[
+                { value: "width", label: "العرض" },
+                { value: "height", label: "الارتفاع" },
+                { value: "original", label: "الأصلي" },
+              ]}
+            />
+          </Row>
+          <Row label="المسافة بين الصفحات" description="الفراغ بين الصفحات في الوضع العمودي.">
+            <SegmentedControl<ReaderGap>
+              value={gap}
+              onChange={setGap}
+              options={[
+                { value: "none", label: "بدون" },
+                { value: "small", label: "صغيرة" },
+                { value: "large", label: "كبيرة" },
+              ]}
+            />
+          </Row>
+          <Row label="خلفية القارئ" description="لون الخلفية خلف الصفحات.">
+            <SegmentedControl<ReaderBg>
+              value={bg}
+              onChange={setBg}
+              options={[
+                { value: "dark", label: "داكن" },
+                { value: "gray", label: "رمادي" },
+                { value: "sepia", label: "بيج" },
+                { value: "light", label: "فاتح" },
+              ]}
+            />
+          </Row>
+          <Row label="عرض الصفحة" description="عرض عمود القراءة على الشاشات الكبيرة.">
+            <SegmentedControl<ReaderWidth>
+              value={readerWidth}
+              onChange={setReaderWidth}
+              options={[
+                { value: "narrow", label: "ضيّق" },
+                { value: "medium", label: "متوسط" },
+                { value: "wide", label: "واسع" },
+                { value: "full", label: "كامل" },
               ]}
             />
           </Row>
