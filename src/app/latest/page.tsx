@@ -20,7 +20,7 @@ export default async function LatestPage() {
       />
 
       {updates.length > 0 ? (
-        <StaggerGroup className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+        <StaggerGroup className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {updates.map((update) => (
             <StaggerItem key={update.id}>
               <LatestUpdateCard update={update} />

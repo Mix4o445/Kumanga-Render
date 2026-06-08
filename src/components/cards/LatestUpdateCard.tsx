@@ -1,71 +1,62 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
-import { Bookmark } from "lucide-react";
 import type { MangaUpdate } from "@/types";
-import { useFavorites } from "@/lib/useFavorites";
-import { cn, formatChapterLabel, formatRelativeTime } from "@/lib/utils";
+import { formatChapterLabel, formatRelativeTime } from "@/lib/utils";
 
 export function LatestUpdateCard({ update }: { update: MangaUpdate }) {
-  const { manga, chapter, updatedAt } = update;
-  const { isFavorite, toggle, ready } = useFavorites();
-  const bookmarked = ready && isFavorite(manga.slug);
+  const { manga, chapter } = update;
+  const chapters =
+    update.recentChapters && update.recentChapters.length > 0
+      ? update.recentChapters
+      : [chapter];
 
   return (
-    <div className="group relative flex items-center gap-3 rounded-card border border-line bg-surface p-3 transition-colors duration-150 hover:border-line-strong hover:bg-surface-raised">
-      {/* Stretched link makes the whole card clickable without nesting buttons. */}
-      <Link
-        href={`/manga/${manga.slug}`}
-        className="absolute inset-0 rounded-card"
-        aria-label={manga.title}
-      />
+    <div className="group flex gap-3 overflow-hidden rounded-card border border-line bg-surface p-3 transition-colors duration-150 hover:border-line-strong hover:bg-surface-raised">
+      {/* Text column */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <Link
+            href={`/manga/${manga.slug}`}
+            className="line-clamp-2 text-sm font-bold leading-snug text-fg transition-colors hover:text-accent"
+          >
+            {manga.title}
+          </Link>
+          <span className="shrink-0 text-[11px] font-bold text-accent">مانجا</span>
+        </div>
+
+        <ul className="mt-auto space-y-1">
+          {chapters.map((c) => (
+            <li key={c.id}>
+              <Link
+                href={`/manga/${manga.slug}/${c.number}`}
+                className="flex items-center justify-between gap-2 rounded-md bg-overlay px-2.5 py-1.5 text-xs text-fg-muted transition-colors hover:bg-overlay-strong hover:text-fg"
+              >
+                <span className="truncate text-fg-faint" suppressHydrationWarning>
+                  {formatRelativeTime(c.releasedAt)}
+                </span>
+                <span className="shrink-0 font-semibold">
+                  {formatChapterLabel(c.number)}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       {/* Cover — RTL start (right) */}
-      <div className="relative size-16 shrink-0 overflow-hidden rounded-md ring-1 ring-line">
+      <Link
+        href={`/manga/${manga.slug}`}
+        aria-label={manga.title}
+        className="relative aspect-[2/3] w-20 shrink-0 self-stretch overflow-hidden rounded-md ring-1 ring-line"
+      >
         <Image
           src={manga.coverImage}
           alt={manga.title}
           fill
-          sizes="64px"
+          sizes="80px"
           className="object-cover transition-transform duration-500 ease-out-soft group-hover:scale-105"
         />
-      </div>
-
-      {/* Stacked text */}
-      <div className="min-w-0 flex-1">
-        <h3 className="truncate text-sm font-bold text-fg transition-colors group-hover:text-accent">
-          {manga.title}
-        </h3>
-        <div className="mt-1 flex items-center gap-2 text-xs">
-          <span className="font-semibold text-accent">
-            {formatChapterLabel(chapter.number)}
-          </span>
-          <span className="size-1 rounded-full bg-fg-faint" aria-hidden />
-          <span className="truncate text-fg-subtle" suppressHydrationWarning>
-            {formatRelativeTime(updatedAt)}
-          </span>
-        </div>
-      </div>
-
-      {/* Bookmark — RTL end (far left) */}
-      <button
-        type="button"
-        onClick={() => toggle(manga.slug)}
-        aria-pressed={bookmarked}
-        aria-label={bookmarked ? "إزالة من المفضلة" : "أضف للمفضلة"}
-        className={cn(
-          "relative z-10 grid size-9 shrink-0 place-items-center rounded-md transition-colors active:scale-95",
-          bookmarked
-            ? "bg-accent text-white"
-            : "border border-line bg-surface text-fg-faint hover:border-line-strong hover:text-fg",
-        )}
-      >
-        <Bookmark
-          className={cn("size-[18px]", bookmarked && "fill-white")}
-          aria-hidden
-        />
-      </button>
+      </Link>
     </div>
   );
 }

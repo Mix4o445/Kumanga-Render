@@ -87,6 +87,8 @@ export interface MangaUpdate {
   /** ISO-8601 timestamp of when the update was published. */
   updatedAt: string;
   hasUnread?: boolean;
+  /** The few most recent chapters of this manga (newest first), for display. */
+  recentChapters?: Chapter[];
 }
 
 /* ------------------------------------------------------------------ */

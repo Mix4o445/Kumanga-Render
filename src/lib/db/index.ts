@@ -284,17 +284,41 @@ export async function getChapterContext(
 }
 
 export async function getLatestUpdates(limit = 12): Promise<MangaUpdate[]> {
-  return (await publicManga())
-    .filter((m) => m.latestChapter)
-    .sort(byUpdated)
-    .slice(0, limit)
-    .map<MangaUpdate>((m, index) => ({
+  const stored = await mangaStore.all();
+  const out: MangaUpdate[] = [];
+  for (const m of stored) {
+    if (!approved(m.reviewStatus)) continue;
+    const approvedChapters = chaptersDesc(
+      m.chapters.filter((c) => approved(c.reviewStatus)),
+    );
+    if (approvedChapters.length === 0) continue;
+
+    // One representative per distinct chapter number, newest first, top 3.
+    const seen = new Set<number>();
+    const recent: typeof approvedChapters = [];
+    for (const c of approvedChapters) {
+      if (seen.has(c.number)) continue;
+      seen.add(c.number);
+      recent.push(c);
+      if (recent.length >= 3) break;
+    }
+
+    const manga = toManga(m);
+    out.push({
       id: `${m.slug}-update`,
-      manga: m,
-      chapter: m.latestChapter!,
-      updatedAt: m.updatedAt ?? m.latestChapter!.releasedAt,
-      hasUnread: index < 4,
-    }));
+      manga,
+      chapter: toChapter(approvedChapters[0]),
+      recentChapters: recent.map(toChapter),
+      updatedAt: m.updatedAt ?? approvedChapters[0].releasedAt,
+    });
+  }
+  return out
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    )
+    .slice(0, limit)
+    .map((u, index) => ({ ...u, hasUnread: index < 4 }));
 }
 
 /* ------------------------------- review ------------------------------- */
