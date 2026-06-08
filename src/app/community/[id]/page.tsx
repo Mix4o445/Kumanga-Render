@@ -3,7 +3,10 @@ import { notFound } from "next/navigation";
 import { ArrowRight, MessageSquare, Clock4, MessagesSquare } from "lucide-react";
 import type { ForumAuthor } from "@/types";
 import { getCurrentUser } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin";
 import { getThreadById, getCategory } from "@/lib/forum";
+import { deleteThreadAction, deleteReplyAction } from "@/lib/actions";
+import { DeleteButton } from "@/components/manga/DeleteButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -80,6 +83,10 @@ export default async function ThreadPage({
   if (!thread) notFound();
 
   const category = getCategory(thread.categoryId);
+  const admin = await isAdmin(user);
+  const canDeleteThread = Boolean(
+    user && (admin || thread.author?.id === user.id),
+  );
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -107,6 +114,16 @@ export default async function ThreadPage({
         <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-fg-muted">
           {thread.body}
         </p>
+        {canDeleteThread ? (
+          <div className="mt-4 flex justify-end border-t border-line pt-3">
+            <DeleteButton
+              action={deleteThreadAction}
+              fields={{ threadId: thread.id }}
+              label="حذف النقاش"
+              confirmMessage="هل أنت متأكد من حذف هذا النقاش وكل ردوده؟ لا يمكن التراجع."
+            />
+          </div>
+        ) : null}
       </article>
 
       {/* Replies */}
@@ -125,7 +142,19 @@ export default async function ThreadPage({
                 key={reply.id}
                 className="rounded-card border border-line bg-surface p-4"
               >
-                <AuthorChip author={reply.author} when={reply.createdAt} />
+                <div className="flex items-start justify-between gap-3">
+                  <AuthorChip author={reply.author} when={reply.createdAt} />
+                  {user && (admin || reply.author?.id === user.id) ? (
+                    <DeleteButton
+                      action={deleteReplyAction}
+                      fields={{ threadId: thread.id, replyId: reply.id }}
+                      label="حذف الرد"
+                      iconOnly
+                      confirmMessage="هل أنت متأكد من حذف هذا الرد؟"
+                      className="grid size-8 shrink-0 place-items-center rounded-pill text-fg-faint transition-colors hover:bg-rose-500/15 hover:text-rose-300 active:scale-95"
+                    />
+                  ) : null}
+                </div>
                 <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-fg-muted">
                   {reply.body}
                 </p>

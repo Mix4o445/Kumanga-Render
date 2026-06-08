@@ -71,3 +71,20 @@ export async function addComment(input: {
   });
   await commentsStore.save(comments);
 }
+
+/**
+ * Delete a comment. Allowed for the comment's author or an admin.
+ * Returns false when the comment doesn't exist or the user lacks permission.
+ */
+export async function deleteComment(
+  commentId: string,
+  userId: string,
+  isAdmin: boolean,
+): Promise<boolean> {
+  const comments = await commentsStore.all();
+  const target = comments.find((c) => c.id === commentId);
+  if (!target) return false;
+  if (!isAdmin && target.authorId !== userId) return false;
+  await commentsStore.save(comments.filter((c) => c.id !== commentId));
+  return true;
+}

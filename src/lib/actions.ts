@@ -24,13 +24,13 @@ import {
 import { getCurrentAdmin, isAdmin } from "@/lib/admin";
 import { requestPasswordReset, resetPasswordWithToken } from "@/lib/password-reset";
 import { getProfileById, updateProfile, setUserVerified } from "@/lib/profile";
-import { addReply, createThread, isValidCategory } from "@/lib/forum";
+import { addReply, createThread, isValidCategory, deleteThread, deleteReply } from "@/lib/forum";
 import {
   sendMessage as sendSupportMessage,
   markUserRead,
   markAdminRead,
 } from "@/lib/support";
-import { addComment } from "@/lib/comments";
+import { addComment, deleteComment } from "@/lib/comments";
 import { rateManga } from "@/lib/ratings";
 import { saveImage, deleteImage } from "@/lib/storage";
 import {
@@ -812,6 +812,41 @@ export async function addCommentAction(
   await addComment({ targetType, targetId, authorId: user!.id, body });
   revalidatePath(path);
   return { success: "تم نشر تعليقك." };
+}
+
+/** Delete a comment (author or admin). Revalidates the page it lives on. */
+export async function deleteCommentAction(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const commentId = String(formData.get("commentId") ?? "").trim();
+  const path = String(formData.get("path") ?? "/") || "/";
+  if (!commentId) return;
+  await deleteComment(commentId, user.id, await isAdmin(user));
+  revalidatePath(path);
+}
+
+/** Delete a forum thread (author or admin), then return to the forum. */
+export async function deleteThreadAction(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/community");
+  const threadId = String(formData.get("threadId") ?? "").trim();
+  if (threadId) {
+    await deleteThread(threadId, user!.id, await isAdmin(user));
+  }
+  revalidatePath("/community");
+  redirect("/community");
+}
+
+/** Delete a single reply within a thread (author or admin). */
+export async function deleteReplyAction(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const threadId = String(formData.get("threadId") ?? "").trim();
+  const replyId = String(formData.get("replyId") ?? "").trim();
+  if (!threadId || !replyId) return;
+  await deleteReply(threadId, replyId, user.id, await isAdmin(user));
+  revalidatePath(`/community/${threadId}`);
+  revalidatePath("/community");
 }
 
 /* ------------------------------- ratings ------------------------------ */

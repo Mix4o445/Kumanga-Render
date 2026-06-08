@@ -207,3 +207,41 @@ export async function addReply(input: {
   await forumStore.save(threads);
   return reply;
 }
+
+/**
+ * Delete a thread (and all its replies). Allowed for the thread's author or an
+ * admin. Returns false when missing or unauthorized.
+ */
+export async function deleteThread(
+  threadId: string,
+  userId: string,
+  isAdmin: boolean,
+): Promise<boolean> {
+  const threads = await forumStore.all();
+  const thread = threads.find((t) => t.id === threadId);
+  if (!thread) return false;
+  if (!isAdmin && thread.authorId !== userId) return false;
+  await forumStore.save(threads.filter((t) => t.id !== threadId));
+  return true;
+}
+
+/**
+ * Delete a single reply within a thread. Allowed for the reply's author or an
+ * admin. Returns false when missing or unauthorized.
+ */
+export async function deleteReply(
+  threadId: string,
+  replyId: string,
+  userId: string,
+  isAdmin: boolean,
+): Promise<boolean> {
+  const threads = await forumStore.all();
+  const thread = threads.find((t) => t.id === threadId);
+  if (!thread) return false;
+  const reply = thread.replies.find((r) => r.id === replyId);
+  if (!reply) return false;
+  if (!isAdmin && reply.authorId !== userId) return false;
+  thread.replies = thread.replies.filter((r) => r.id !== replyId);
+  await forumStore.save(threads);
+  return true;
+}

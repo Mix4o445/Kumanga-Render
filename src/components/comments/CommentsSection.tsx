@@ -3,6 +3,9 @@ import { MessageSquare } from "lucide-react";
 import type { CommentTarget } from "@/types";
 import { getComments } from "@/lib/comments";
 import { getCurrentUser } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin";
+import { deleteCommentAction } from "@/lib/actions";
+import { DeleteButton } from "@/components/manga/DeleteButton";
 import { Avatar } from "@/components/ui/Avatar";
 import { UserBadge } from "@/components/ui/UserBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -26,6 +29,7 @@ export async function CommentsSection({
     getComments(targetType, targetId),
     getCurrentUser(),
   ]);
+  const admin = await isAdmin(user);
 
   return (
     <section id="comments" className="scroll-mt-24">
@@ -62,6 +66,9 @@ export async function CommentsSection({
               comment.author?.displayName ||
               comment.author?.username ||
               "مستخدم محذوف";
+            const canDelete = Boolean(
+              user && (admin || comment.author?.id === user.id),
+            );
             return (
               <li
                 key={comment.id}
@@ -92,6 +99,18 @@ export async function CommentsSection({
                     >
                       · {formatRelativeTime(comment.createdAt)}
                     </span>
+                    {canDelete ? (
+                      <div className="ms-auto shrink-0">
+                        <DeleteButton
+                          action={deleteCommentAction}
+                          fields={{ commentId: comment.id, path }}
+                          label="حذف التعليق"
+                          iconOnly
+                          confirmMessage="هل أنت متأكد من حذف هذا التعليق؟"
+                          className="grid size-8 place-items-center rounded-pill text-fg-faint transition-colors hover:bg-rose-500/15 hover:text-rose-300 active:scale-95"
+                        />
+                      </div>
+                    ) : null}
                   </div>
                   <p className="mt-1 whitespace-pre-line text-sm leading-6 text-fg-muted">
                     {comment.body}
