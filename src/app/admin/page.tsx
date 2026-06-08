@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ShieldCheck, Check, X, BookOpen, Layers, Inbox } from "lucide-react";
+import { ShieldCheck, Check, X, BookOpen, Layers, Inbox, Users } from "lucide-react";
 import { getCurrentAdmin } from "@/lib/admin";
 import { getPendingManga, getPendingChapters } from "@/lib/db";
 import { getProfileById } from "@/lib/profile";
@@ -10,6 +10,7 @@ import {
   rejectMangaAction,
   approveChapterAction,
   rejectChapterAction,
+  clearAllMangaAuthorAction,
 } from "@/lib/actions";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -188,6 +189,26 @@ export default async function AdminReviewPage() {
               description="ستظهر هنا الفصول الجديدة التي يرفعها المستخدمون."
             />
           )}
+        </section>
+
+        {/* Advanced tools */}
+        <section className="border-t border-line pt-8">
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-fg">
+            <Users className="size-4 text-fg-subtle" strokeWidth={2.25} aria-hidden />
+            أدوات مساعدة
+          </h2>
+          <form action={clearAllMangaAuthorAction}>
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 rounded-card bg-rose-500/15 px-4 py-2.5 text-sm font-bold text-rose-300 ring-1 ring-rose-500/30 transition-colors hover:bg-rose-500/25 active:scale-95"
+            >
+              <Users className="size-4" />
+              إزالة «@Kumanga» من حقل الكاتب للكل
+            </button>
+          </form>
+          <p className="mt-2 text-xs text-fg-faint">
+            يمسح حقل المؤلف لكل عمل يحمل القيمة @Kumanga.
+          </p>
         </section>
       </div>
     </div>

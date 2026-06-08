@@ -8,6 +8,7 @@ import {
   destroySession,
   getCurrentUser,
   verifyCredentials,
+  findUserByUsername,
 } from "@/lib/auth";
 import {
   addChapter,
@@ -20,8 +21,10 @@ import {
   deleteChapter,
   setChapterReview,
   setMangaReview,
+  reassignAllUploads,
 } from "@/lib/db";
 import { getCurrentAdmin, isAdmin } from "@/lib/admin";
+import { mangaStore } from "@/lib/db/store";
 import { requestPasswordReset, resetPasswordWithToken } from "@/lib/password-reset";
 import { submitToIndexNow } from "@/lib/indexnow";
 import { absoluteUrl } from "@/lib/seo";
@@ -873,6 +876,23 @@ export async function setThreadPinnedAction(formData: FormData): Promise<void> {
   await setThreadPinned(threadId, pinned);
   revalidatePath(`/community/${threadId}`);
   revalidatePath("/community");
+}
+
+/** Remove "@Kumanga" author from all manga (admin only). */
+export async function clearAllMangaAuthorAction(_formData: FormData): Promise<void> {
+  await requireAdmin();
+  const all = await mangaStore.all();
+  let changed = 0;
+  for (const m of all) {
+    if (m.authorName === "@Kumanga") {
+      m.authorName = undefined;
+      m.updatedAt = new Date().toISOString();
+      changed++;
+    }
+  }
+  if (changed > 0) await mangaStore.save(all);
+  revalidatePath("/admin");
+  revalidatePath("/", "layout");
 }
 
 /* ------------------------------- ratings ------------------------------ */
