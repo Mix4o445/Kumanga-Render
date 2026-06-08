@@ -107,7 +107,7 @@ export function extractMangaUrls(html: string, baseUrl: string): { url: string; 
   const seen = new Set<string>();
   for (const sel of selectors) {
     $(sel).each((_, el) => {
-      const href = $(el).attr("href");
+      const href = ($(el).attr("href") || "").trim();
       const title = cleanText($(el));
       if (href && title && !seen.has(href)) {
         seen.add(href);
@@ -319,11 +319,10 @@ export async function scrapeMangaDetail(
     || url.split("/").filter(Boolean).pop() || "Unknown";
 
   const cover =
-    $(".summary_image img, .wp-manga-cover img, .thumb img").first().attr("data-src")
-    || $(".summary_image img, .wp-manga-cover img, .thumb img").first().attr("src")
-    // WP Fire fallback
-    || $(".detail-bg img").first().attr("data-src")
-    || $(".detail-bg img").first().attr("src")
+    ($(".summary_image img, .wp-manga-cover img, .thumb img").first().attr("data-src") || "").trim()
+    || ($(".summary_image img, .wp-manga-cover img, .thumb img").first().attr("src") || "").trim()
+    || ($(".detail-bg img").first().attr("data-src") || "").trim()
+    || ($(".detail-bg img").first().attr("src") || "").trim()
     || "";
 
   let synopsis = "";
@@ -401,7 +400,7 @@ export async function scrapeMangaDetail(
     if (items.length > 0) {
       items.each((_, el) => {
         const link = $(el).find("a").first();
-        const href = link.attr("href");
+        const href = (link.attr("href") || "").trim();
         const chapterTitle = cleanText($(el).find("a").first());
         const chapterText = cleanText($(el).find(".chapter-number").length ? $(el).find(".chapter-number") : $(el));
 
@@ -423,8 +422,8 @@ export async function scrapeMangaDetail(
   if (chapters.length === 0) {
     const initLinks = $("#init-links a[href]");
     if (initLinks.length >= 2) {
-      const firstUrl = $(initLinks[0]).attr("href") || "";
-      const lastUrl = $(initLinks[1]).attr("href") || "";
+      const firstUrl = ($(initLinks[0]).attr("href") || "").trim();
+      const lastUrl = ($(initLinks[1]).attr("href") || "").trim();
       const firstMatch = firstUrl.match(/(\d+)\/?$/);
       const lastMatch = lastUrl.match(/(\d+)\/?$/);
       if (firstMatch && lastMatch) {
@@ -456,7 +455,7 @@ export async function scrapeMangaDetail(
     const slug = url.replace(/\/+$/, "").split("/").pop() || "";
     const seen = new Set<string>();
     $("#manga-page a").each((_, el) => {
-      const href = $(el).attr("href");
+      const href = ($(el).attr("href") || "").trim();
       if (!href || seen.has(href)) return;
       if (!href.includes("/manga/") || (slug && !href.includes(slug))) return;
       const text = cleanText($(el));
@@ -526,7 +525,7 @@ export async function scrapeChapterPages(
 
   for (const sel of imgSelectors) {
     $(sel).each((_, el) => {
-      const src = $(el).attr("data-src") || $(el).attr("src") || $(el).attr("data-lazy-src") || "";
+      let src = ($(el).attr("data-src") || $(el).attr("src") || $(el).attr("data-lazy-src") || "").trim();
       if (src && !src.includes("data:image")) {
         images.push(src.startsWith("http") ? src : `${new URL(url).origin}${src}`);
       }
