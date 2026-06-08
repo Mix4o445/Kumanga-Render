@@ -6,6 +6,7 @@ import { TopNav } from "./TopNav";
 import { RightSidebar } from "./RightSidebar";
 import { LeftSidebar } from "./LeftSidebar";
 import { Footer } from "./Footer";
+import { AntiInspect } from "@/components/security/AntiInspect";
 
 /**
  * Shared application chrome used by every route: sticky top nav, the
@@ -30,6 +31,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <AntiInspect disabled={admin} />
       <TopNav user={user} isAdmin={admin} unreadMessages={unreadMessages} />
 
       <div className="mx-auto flex w-full max-w-[1600px] flex-1 items-start">
