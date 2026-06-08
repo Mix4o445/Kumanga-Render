@@ -160,6 +160,124 @@ async function tryApi(baseUrl: string): Promise<{ available: boolean; pages?: nu
 /**
  * Scrape a manga detail page and extract all metadata + chapter list.
  */
+/**
+ * Try to scrape manga detail via Madara's REST API (/wp-json/manga/v1/).
+ * Returns null if the API is unavailable or the manga isn't found.
+ */
+export async function scrapeMangaDetailApi(
+  mangaUrl: string,
+  headers?: Record<string, string>,
+): Promise<ScrapedManga | null> {
+  const base = new URL(mangaUrl).origin;
+  // Derive the slug from the URL path (last non-empty segment).
+  const slug = mangaUrl.replace(/\/+$/, "").split("/").pop() || "";
+
+  // Try the most common Madara API endpoint: /wp-json/manga/v1/manga?slug=
+  const apiUrl = `${base}/wp-json/manga/v1/manga?slug=${encodeURIComponent(slug)}`;
+  try {
+    const res = await fetch(apiUrl, {
+      headers: { ...DEFAULT_HEADERS, ...headers, Accept: "application/json" },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+
+    // API returns an array with one item or an object.
+    const m = Array.isArray(data) ? data[0] : data;
+    if (!m || !m.id) return null;
+
+    const title = m.title || m.name || m.post_title || slug;
+    const chapters: ScrapedChapter[] = [];
+
+    // Chapters can be in m.chapters (array) or loaded via a separate endpoint.
+    if (Array.isArray(m.chapters)) {
+      for (const ch of m.chapters) {
+        const num = parseFloat(ch.number) || parseFloat(ch.slug) || chapters.length + 1;
+        const chUrl = ch.link || ch.url || `${base}/manga/${slug}/${ch.number}/`;
+        chapters.push({
+          number: num,
+          title: ch.title || ch.name || undefined,
+          url: chUrl,
+        });
+      }
+    }
+
+    // If no chapters in the response, try the chapter list endpoint.
+    if (chapters.length === 0) {
+      const chRes = await fetch(
+        `${base}/wp-json/manga/v1/chapters?manga_id=${m.id}`,
+        { headers: { ...DEFAULT_HEADERS, ...headers, Accept: "application/json" } },
+      );
+      if (chRes.ok) {
+        const chData = await chRes.json();
+        const chList = Array.isArray(chData) ? chData : (chData.posts || []);
+        for (const ch of chList) {
+          const num = parseFloat(ch.number) || parseFloat(ch.slug) || chapters.length + 1;
+          chapters.push({
+            number: num,
+            title: ch.title || ch.name || undefined,
+            url: ch.link || ch.url || `${base}/manga/${slug}/${ch.number}/`,
+          });
+        }
+      }
+    }
+
+    chapters.sort((a, b) => a.number - b.number);
+
+    return {
+      title,
+      slug: slugify(title),
+      coverImage: m.thumbnail || m.cover_image || m.coverImage || m.image || "",
+      synopsis: m.synopsis || m.description || m.excerpt || m.post_excerpt || "",
+      genres: Array.isArray(m.genres)
+        ? m.genres.map((g: any) => (typeof g === "string" ? g : g.name || g.slug || ""))
+        : [],
+      author: m.author || m.author_name || undefined,
+      status: parseStatus(m.status || m.manga_status || ""),
+      year: m.year ? parseYear(String(m.year)) : undefined,
+      chapters,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Try to scrape chapter pages via Madara's REST API.
+ */
+export async function scrapeChapterPagesApi(
+  chapterUrl: string,
+  headers?: Record<string, string>,
+): Promise<string[] | null> {
+  const base = new URL(chapterUrl).origin;
+
+  // Madara stores chapter IDs; the URL may contain the numeric ID.
+  // Try /wp-json/manga/v1/chapter/<id> (the id is the last numeric segment).
+  const segments = chapterUrl.replace(/\/+$/, "").split("/");
+  const last = segments[segments.length - 1];
+  const idMatch = last.match(/(\d+)/);
+  const chapterId = idMatch ? idMatch[1] : "";
+
+  if (!chapterId) return null;
+
+  try {
+    const res = await fetch(
+      `${base}/wp-json/manga/v1/chapter/${chapterId}`,
+      { headers: { ...DEFAULT_HEADERS, ...headers, Accept: "application/json" } },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const pages = data.pages || data.images || data.page_images || [];
+    if (Array.isArray(pages) && pages.length > 0) {
+      return pages.map((p: any) =>
+        typeof p === "string" ? p : p.src || p.url || p.image || "",
+      ).filter(Boolean);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function scrapeMangaDetail(
   url: string,
   headers?: Record<string, string>,
@@ -385,7 +503,9 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
 
   const scrapeOne = async (entry: { url: string; title: string }): Promise<ScrapedManga | null> => {
     try {
-      const manga = await scrapeMangaDetail(entry.url, headers, cookies);
+      // Try REST API first (no Cloudflare issues), fall back to HTML.
+      const manga = (await scrapeMangaDetailApi(entry.url, headers))
+        ?? await scrapeMangaDetail(entry.url, headers, cookies);
       await sleep(delay);
       return manga;
     } catch (err) {
@@ -407,7 +527,8 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
       const chEntries = manga.chapters;
       const scrapeChapter = async (ch: ScrapedChapter): Promise<ScrapedChapter> => {
         try {
-          ch.pageImages = await scrapeChapterPages(ch.url, headers, cookies);
+          ch.pageImages = (await scrapeChapterPagesApi(ch.url, headers))
+            ?? await scrapeChapterPages(ch.url, headers, cookies);
           await sleep(delay / 2);
         } catch (err) {
           errors.push({ url: ch.url, error: String(err) });
@@ -489,12 +610,19 @@ export async function scrapeMadaraChapters(
   const startTime = Date.now();
   const errors: { url: string; error: string }[] = [];
 
-  const manga = await scrapeMangaDetail(mangaUrl, headers, cookies);
+  // Try REST API first (bypasses Cloudflare on most sites).
+  const apiResult = await scrapeMangaDetailApi(mangaUrl, headers);
+  const manga = apiResult ?? await scrapeMangaDetail(mangaUrl, headers, cookies);
+
+  if (manga.chapters.length === 0) {
+    // No chapters found via either API or HTML — nothing to do.
+  }
 
   if (scrapeImages) {
     const scrapeOne = async (ch: ScrapedChapter): Promise<ScrapedChapter> => {
       try {
-        ch.pageImages = await scrapeChapterPages(ch.url, headers, cookies);
+        ch.pageImages = (await scrapeChapterPagesApi(ch.url, headers))
+          ?? await scrapeChapterPages(ch.url, headers, cookies);
       } catch (err) {
         errors.push({ url: ch.url, error: String(err) });
       }
