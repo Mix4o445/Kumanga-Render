@@ -143,6 +143,16 @@ export async function findUserByEmail(
   return users.find((u) => u.email.toLowerCase() === emailLc) ?? null;
 }
 
+/** Find a stored user by username (case-insensitive). Server-only. */
+export async function findUserByUsername(
+  username: string,
+): Promise<StoredUser | null> {
+  const nameLc = username.trim().toLowerCase().replace(/^@/, "");
+  if (!nameLc) return null;
+  const users = await userStore.all();
+  return users.find((u) => u.username.toLowerCase() === nameLc) ?? null;
+}
+
 /**
  * Replace a user's password. Generates a fresh salt + hash and persists it.
  * Returns false when the user id doesn't exist.

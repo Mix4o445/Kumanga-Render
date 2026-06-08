@@ -469,6 +469,20 @@ export async function incrementMangaViews(mangaId: string): Promise<void> {
   await mangaStore.save(stored);
 }
 
+/**
+ * Reassign every manga and chapter to a single uploader. Used by the admin
+ * "republish everything under @Kumanga" action. Returns the manga count.
+ */
+export async function reassignAllUploads(userId: string): Promise<number> {
+  const stored = await mangaStore.all();
+  for (const m of stored) {
+    m.uploaderId = userId;
+    for (const c of m.chapters) c.uploaderId = userId;
+  }
+  await mangaStore.save(stored);
+  return stored.length;
+}
+
 /* --------------------------- edit / delete ---------------------------- */
 
 /** Raw stored manga by id (server/admin use — includes unapproved). */

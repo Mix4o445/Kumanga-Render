@@ -14,6 +14,7 @@ import {
 } from "@/lib/actions";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { RepublishAllButton } from "@/components/admin/RepublishAllButton";
 import { formatChapterLabel } from "@/lib/utils";
 
 export const metadata = { title: "لوحة المراجعة | قارئ مانجا" };
@@ -72,6 +73,7 @@ export default async function AdminReviewPage() {
         title="لوحة المراجعة"
         subtitle="راجع الأعمال والفصول المرفوعة ووافق عليها قبل ظهورها للقرّاء."
         accent="blue"
+        action={<RepublishAllButton />}
       />
 
       <div className="space-y-10">

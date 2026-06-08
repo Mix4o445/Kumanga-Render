@@ -25,7 +25,6 @@ import {
 } from "@/lib/db";
 import { mangaStore } from "@/lib/db/store";
 import { getCurrentAdmin, isAdmin } from "@/lib/admin";
-import { mangaStore } from "@/lib/db/store";
 import { requestPasswordReset, resetPasswordWithToken } from "@/lib/password-reset";
 import { submitToIndexNow } from "@/lib/indexnow";
 import { absoluteUrl } from "@/lib/seo";
@@ -714,6 +713,19 @@ export async function unverifyUserAction(formData: FormData): Promise<void> {
   await setUserVerified(userId, false);
   revalidatePath("/", "layout");
   if (username) revalidatePath(`/u/${username}`);
+}
+
+/**
+ * Admin: reassign every manga and chapter so they appear published by the
+ * "@Kumanga" account. No-ops if that account doesn't exist.
+ */
+export async function republishAllAsKumangaAction(): Promise<void> {
+  await requireAdmin();
+  const kumanga = await findUserByUsername("Kumanga");
+  if (!kumanga) return;
+  await reassignAllUploads(kumanga.id);
+  revalidatePath("/", "layout");
+  revalidatePath("/admin");
 }
 
 /* --------------------------- support chat ----------------------------- */
