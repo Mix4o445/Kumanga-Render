@@ -21,6 +21,7 @@ import {
   setChapterReview,
   setMangaReview,
 } from "@/lib/db";
+import { mangaStore } from "@/lib/db/store";
 import { getCurrentAdmin, isAdmin } from "@/lib/admin";
 import { requestPasswordReset, resetPasswordWithToken } from "@/lib/password-reset";
 import { submitToIndexNow } from "@/lib/indexnow";
@@ -873,6 +874,25 @@ export async function setThreadPinnedAction(formData: FormData): Promise<void> {
   await setThreadPinned(threadId, pinned);
   revalidatePath(`/community/${threadId}`);
   revalidatePath("/community");
+}
+
+/** Clear all chapter titles for a manga (admin only). */
+export async function clearChapterTitlesAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const mangaId = String(formData.get("mangaId") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  if (!mangaId) return;
+  const all = await mangaStore.all();
+  const manga = all.find((m) => m.id === mangaId);
+  if (!manga) return;
+  for (const ch of manga.chapters) {
+    ch.title = undefined;
+  }
+  manga.updatedAt = new Date().toISOString();
+  await mangaStore.save(all);
+  revalidatePath(`/manga/${slug}`);
+  revalidatePath(`/manga/${slug}/edit`);
+  revalidatePath("/admin");
 }
 
 /* ------------------------------- ratings ------------------------------ */
