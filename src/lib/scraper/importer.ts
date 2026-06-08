@@ -52,12 +52,8 @@ export async function importScrapedManga(
 
   for (const scraped of scrapedList) {
     try {
-      const slug = uniqueSlug(scraped.slug, existingSlugs);
-
-      if (!overwrite && existingSlugs.has(slug)) {
-        skipped++;
-        continue;
-      }
+      const existing = stored.find((m) => m.slug === scraped.slug);
+      const slug = existing ? scraped.slug : uniqueSlug(scraped.slug, existingSlugs);
 
       const genreSlugs = scraped.genres
         .map(mapGenre)
@@ -66,25 +62,39 @@ export async function importScrapedManga(
       const now = new Date().toISOString();
       const nowDate = new Date();
 
-      const chapters: StoredChapter[] = scraped.chapters.map((ch: ScrapedChapter) => {
-        chaptersImported++;
-        const releasedAt = new Date(nowDate.getTime() - (scraped.chapters.length - ch.number) * 86400000).toISOString();
-        return {
-          id: randomUUID(),
-          mangaId: "", // filled below
-          number: ch.number,
-          title: ch.title || undefined,
-          releasedAt,
-          pages: ch.pageImages || [],
-          uploaderId: "scraper",
-          reviewStatus: autoApprove ? undefined : "pending",
-        };
-      });
+      const buildChapters = (mangaId: string): StoredChapter[] =>
+        scraped.chapters.map((ch: ScrapedChapter) => {
+          chaptersImported++;
+          const releasedAt = new Date(nowDate.getTime() - (scraped.chapters.length - ch.number) * 86400000).toISOString();
+          return {
+            id: randomUUID(),
+            mangaId,
+            number: ch.number,
+            title: ch.title || undefined,
+            releasedAt,
+            pages: ch.pageImages || [],
+            uploaderId: "scraper",
+            reviewStatus: autoApprove ? undefined : "pending",
+          };
+        });
 
-      const mangaId = randomUUID();
-      for (const ch of chapters) {
-        ch.mangaId = mangaId;
+      if (existing && !overwrite) {
+        const existingNumbers = new Set(existing.chapters.map((c) => c.number));
+        const newChapters = scraped.chapters.filter((ch) => !existingNumbers.has(ch.number));
+        if (newChapters.length === 0) {
+          skipped++;
+          continue;
+        }
+        scraped.chapters = newChapters;
+        const added = buildChapters(existing.id);
+        existing.chapters.push(...added);
+        existing.updatedAt = now;
+        imported++;
+        continue;
       }
+
+      const mangaId = existing ? existing.id : randomUUID();
+      const chapters = buildChapters(mangaId);
 
       const record: StoredManga = {
         id: mangaId,
@@ -97,21 +107,19 @@ export async function importScrapedManga(
         genreSlugs,
         status: scraped.status,
         year: scraped.year,
-        views: 0,
+        views: existing ? existing.views : 0,
         uploaderId: "scraper",
-        createdAt: now,
+        createdAt: existing ? existing.createdAt : now,
         updatedAt: now,
         chapters,
-        reviewStatus,
+        reviewStatus: existing ? existing.reviewStatus : autoApprove ? undefined : "pending",
       };
 
-      if (overwrite) {
-        const idx = stored.findIndex((m) => m.slug === slug);
-        if (idx !== -1) {
-          stored[idx] = record;
-          imported++;
-          continue;
-        }
+      if (existing && overwrite) {
+        const idx = stored.findIndex((m) => m.id === existing.id);
+        stored[idx] = record;
+        imported++;
+        continue;
       }
 
       stored.push(record);
