@@ -315,7 +315,8 @@ export async function scrapeMangaDetail(
   const html = await fetchWithRetry(url, 3, headers, cookies);
   const $ = cheerio.load(html);
 
-  const title = cleanText($(".post-title, .entry-title, h1")).split("\n")[0].trim()
+  const titleEl = $("h1").first();
+  const title = (titleEl.length ? cleanText(titleEl) : cleanText($(".post-title, .entry-title"))).split("\n")[0].trim()
     || url.split("/").filter(Boolean).pop() || "Unknown";
 
   const cover =
@@ -424,8 +425,8 @@ export async function scrapeMangaDetail(
     if (initLinks.length >= 2) {
       const firstUrl = ($(initLinks[0]).attr("href") || "").trim();
       const lastUrl = ($(initLinks[1]).attr("href") || "").trim();
-      const firstMatch = firstUrl.match(/(\d+)\/?$/);
-      const lastMatch = lastUrl.match(/(\d+)\/?$/);
+      const firstMatch = firstUrl.match(/(\d+)\w*\/?$/);
+      const lastMatch = lastUrl.match(/(\d+)\w*\/?$/);
       if (firstMatch && lastMatch) {
         const firstNum = parseInt(firstMatch[1]);
         const lastNum = parseInt(lastMatch[1]);
