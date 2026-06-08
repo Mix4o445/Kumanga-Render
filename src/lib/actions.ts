@@ -895,6 +895,23 @@ export async function clearChapterTitlesAction(formData: FormData): Promise<void
   revalidatePath("/admin");
 }
 
+/** Set authorName to "@Kumanga" on all manga (admin only). */
+export async function setAllMangaAuthorAction(_formData: FormData): Promise<void> {
+  await requireAdmin();
+  const all = await mangaStore.all();
+  let changed = 0;
+  for (const m of all) {
+    if (m.authorName !== "@Kumanga") {
+      m.authorName = "@Kumanga";
+      m.updatedAt = new Date().toISOString();
+      changed++;
+    }
+  }
+  if (changed > 0) await mangaStore.save(all);
+  revalidatePath("/admin");
+  revalidatePath("/", "layout");
+}
+
 /* ------------------------------- ratings ------------------------------ */
 
 /** Direct-call action: set the current user's 1–5 rating for a manga. */
