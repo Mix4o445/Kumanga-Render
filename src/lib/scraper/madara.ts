@@ -356,6 +356,37 @@ export async function scrapeMangaDetail(
     }
   }
 
+  // Fallback: extract chapter links from #manga-page (WP Fire / non-standard themes)
+  if (chapters.length === 0) {
+    const slug = url.replace(/\/+$/, "").split("/").pop() || "";
+    const seen = new Set<string>();
+    $("#manga-page a").each((_, el) => {
+      const href = $(el).attr("href");
+      if (!href || seen.has(href)) return;
+      if (!href.includes("/manga/") || (slug && !href.includes(slug))) return;
+      const text = cleanText($(el));
+      if (!text || !/الفصل|Chapter|ch\.?\s*\d/i.test(text)) return;
+
+      const numMatch = text.match(/(?:الفصل|Chapter|Ch\.?)\s*([\d.]+)/i);
+      const num = numMatch ? parseFloat(numMatch[1]) : chapters.length + 1;
+
+      let title = text.replace(/^(?:الفصل\s*(?:الخاص\s*)?|Chapter|Ch\.?)\s*[\d.]*\s*[:/\-]?\s*/i, "").trim();
+      if (/^[a-z/]/.test(title)) {
+        title = "";
+      } else {
+        title = title.replace(/[a-z][\w.]+[\u0600-\u06FF].*$/i, "").trim();
+        title = title.replace(/[/:,]?\s*[\u0600-\u06FF]+\s*\d+,?\s*\d*$/, "").trim();
+      }
+
+      seen.add(href);
+      chapters.push({
+        number: num,
+        title: title || undefined,
+        url: href.startsWith("http") ? href : `${new URL(url).origin}${href}`,
+      });
+    });
+  }
+
   chapters.sort((a, b) => a.number - b.number);
 
   return {
@@ -393,6 +424,9 @@ export async function scrapeChapterPages(
     ".chapter-images img",
     "div.text-center img",
     ".wp-manga-chapter-img",
+    "#ch-images img",
+    ".pages img",
+    ".preload-image",
   ];
 
   for (const sel of imgSelectors) {

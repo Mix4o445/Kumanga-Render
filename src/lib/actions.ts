@@ -23,6 +23,8 @@ import {
 } from "@/lib/db";
 import { getCurrentAdmin, isAdmin } from "@/lib/admin";
 import { requestPasswordReset, resetPasswordWithToken } from "@/lib/password-reset";
+import { submitToIndexNow } from "@/lib/indexnow";
+import { absoluteUrl } from "@/lib/seo";
 import { getProfileById, updateProfile, setUserVerified } from "@/lib/profile";
 import { addReply, createThread, isValidCategory, deleteThread, deleteReply, setThreadPinned } from "@/lib/forum";
 import {
@@ -210,6 +212,7 @@ export async function createMangaAction(
   if (formData.get("agree") !== "yes")
     return { error: "يجب الموافقة على شروط الرفع قبل النشر." };
 
+  const mangaApproved = (await isAdmin(user)) || Boolean(user!.verified);
   let slug: string;
   try {
     const fileBase = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -231,8 +234,7 @@ export async function createMangaAction(
       year,
       uploaderId: user!.id,
       slugBase: base,
-      reviewStatus:
-        (await isAdmin(user)) || user!.verified ? "approved" : "pending",
+      reviewStatus: mangaApproved ? "approved" : "pending",
     });
     slug = record.slug;
   } catch (e) {
@@ -240,6 +242,10 @@ export async function createMangaAction(
   }
 
   revalidatePath("/");
+  // Notify search engines (Bing/Yandex) the moment a public title appears.
+  if (mangaApproved) {
+    await submitToIndexNow([absoluteUrl("/"), absoluteUrl(`/manga/${slug}`)]);
+  }
   redirect(`/manga/${encodeURIComponent(slug)}`);
 }
 
@@ -289,6 +295,10 @@ export async function addChapterAction(
   // Approved chapters go straight to the reader; pending ones return to the
   // title page where the owner sees them marked "under review".
   if (reviewStatus === "approved") {
+    await submitToIndexNow([
+      absoluteUrl(`/manga/${slug}`),
+      absoluteUrl(`/manga/${slug}/${number}`),
+    ]);
     redirect(`/manga/${encodeURIComponent(slug)}/${number}`);
   }
   redirect(`/manga/${encodeURIComponent(slug)}`);
@@ -513,6 +523,7 @@ export async function approveMangaAction(formData: FormData): Promise<void> {
   const manga = await getMangaById(mangaId);
   await setMangaReview(mangaId, "approved");
   if (manga) {
+    await submitToIndexNow([absoluteUrl("/"), absoluteUrl(`/manga/${manga.slug}`)]);
     await notifyReview(
       manga.uploaderId,
       `✅ تمت الموافقة على عملك «${manga.title}» وأصبح ظاهرًا للقرّاء الآن. شكرًا لمساهمتك!`,
@@ -545,6 +556,10 @@ export async function approveChapterAction(formData: FormData): Promise<void> {
   const chapter = manga?.chapters.find((c) => c.id === chapterId);
   await setChapterReview(mangaId, chapterId, "approved");
   if (manga && chapter) {
+    await submitToIndexNow([
+      absoluteUrl(`/manga/${manga.slug}`),
+      absoluteUrl(`/manga/${manga.slug}/${chapter.number}`),
+    ]);
     await notifyReview(
       chapter.uploaderId,
       `✅ تمت الموافقة على الفصل ${chapter.number} من «${manga.title}» وأصبح متاحًا للقرّاء.`,
