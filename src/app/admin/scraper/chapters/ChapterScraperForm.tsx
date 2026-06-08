@@ -53,6 +53,7 @@ export function ChapterScraperForm({ mangaList }: { mangaList: MangaOption[] }) 
   const [autoApprove, setAutoApprove] = useState(true);
   const [overwrite, setOverwrite] = useState(false);
   const [cookies, setCookies] = useState("");
+  const [userAgent, setUserAgent] = useState("");
   const [showCookies, setShowCookies] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ChapterScrapeResult | null>(null);
@@ -109,6 +110,7 @@ export function ChapterScraperForm({ mangaList }: { mangaList: MangaOption[] }) 
           autoApprove,
           overwrite,
           cookies: cookies || undefined,
+          userAgent: userAgent || undefined,
         }),
       });
       const data = await res.json();
@@ -252,18 +254,30 @@ export function ChapterScraperForm({ mangaList }: { mangaList: MangaOption[] }) 
           </button>
 
           {showCookies ? (
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-fg-muted">الكوكيز</label>
-              <textarea
-                value={cookies}
-                onChange={(e) => setCookies(e.target.value)}
-                className="w-full rounded-card border border-line bg-input px-4 py-3 text-xs text-fg outline-none transition-colors placeholder:text-fg-faint hover:border-line-strong focus:border-royal/50"
-                rows={3}
-                dir="ltr"
-                placeholder="افتح الموقع في المتصفح → F12 → Network → اختر طلب → انسخ Cookie header"
-              />
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-fg-muted">الكوكيز (Cookie header)</label>
+                <textarea
+                  value={cookies}
+                  onChange={(e) => setCookies(e.target.value)}
+                  className="w-full rounded-card border border-line bg-input px-4 py-3 text-xs text-fg outline-none transition-colors placeholder:text-fg-faint hover:border-line-strong focus:border-royal/50"
+                  rows={3}
+                  dir="ltr"
+                  placeholder="انسخ Cookie header كاملاً من المتصفح"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-fg-muted">User-Agent (اختياري — لكن ضروري مع الكوكيز)</label>
+                <input
+                  value={userAgent}
+                  onChange={(e) => setUserAgent(e.target.value)}
+                  className="w-full rounded-card border border-line bg-input px-4 py-3 text-xs text-fg outline-none transition-colors placeholder:text-fg-faint hover:border-line-strong focus:border-royal/50"
+                  dir="ltr"
+                  placeholder="انسخ User-Agent من المتصفح: F12 → Network → أي طلب → Request Headers → User-Agent"
+                />
+              </div>
               <p className="text-xs text-fg-faint">
-                افتح الموقع في متصفحك، F12 &gt; Network &gt; اختر أي طلب &gt; انسخ قيمة Cookie Header.
+                افتح F12 &gt; Network &gt; اختر أي طلب &gt; انسخ <b>Cookie</b> و <b>User-Agent</b> من Request Headers. لازم يطابق User-Agent حق المتصفح اللي جبت منه الكوكيز عشان Cloudflare يقبل الطلب.
               </p>
             </div>
           ) : null}

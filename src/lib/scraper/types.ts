@@ -39,6 +39,8 @@ export interface ScraperOptions {
   headers?: Record<string, string>;
   /** Raw cookie string (e.g. "key=value; key2=value2") for bypassing Cloudflare */
   cookies?: string;
+  /** User-Agent matching your browser (required when using cookies) */
+  userAgent?: string;
 }
 
 export interface ScrapeResult {

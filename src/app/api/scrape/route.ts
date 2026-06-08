@@ -16,6 +16,7 @@ interface ScrapeRequest {
   autoApprove?: boolean;
   overwrite?: boolean;
   cookies?: string;
+  userAgent?: string;
 }
 
 export async function POST(req: Request) {
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
       delay: body.delay ?? 1500,
       listPath: body.listPath ?? "/manga/",
       cookies: body.cookies,
+      userAgent: body.userAgent,
     });
 
     // Send progress update back

@@ -321,9 +321,14 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
     scrapeChapterPages: scrapeImages = false,
     delay = 1000,
     listPath = "/manga/",
-    headers,
+    headers: customHeaders,
     cookies,
+    userAgent,
   } = options;
+
+  const headers: Record<string, string> | undefined = userAgent
+    ? { ...customHeaders, "User-Agent": userAgent }
+    : customHeaders;
 
   const startTime = Date.now();
   const errors: { url: string; error: string }[] = [];
@@ -444,6 +449,8 @@ export interface ChaptersScrapeOptions {
   headers?: Record<string, string>;
   /** Raw cookie string for bypassing Cloudflare */
   cookies?: string;
+  /** User-Agent matching your browser (required when using cookies) */
+  userAgent?: string;
 }
 
 export interface ChaptersScrapeResult {
@@ -470,9 +477,14 @@ export async function scrapeMadaraChapters(
     scrapeImages = false,
     concurrency = 3,
     delay = 1000,
-    headers,
+    headers: customHeaders,
     cookies,
+    userAgent,
   } = options;
+
+  const headers: Record<string, string> | undefined = userAgent
+    ? { ...customHeaders, "User-Agent": userAgent }
+    : customHeaders;
 
   const startTime = Date.now();
   const errors: { url: string; error: string }[] = [];

@@ -15,6 +15,7 @@ interface ChaptersRequest {
   autoApprove?: boolean;
   overwrite?: boolean;
   cookies?: string;
+  userAgent?: string;
 }
 
 export async function POST(req: Request) {
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
       concurrency: body.concurrency ?? 3,
       delay: body.delay ?? 1500,
       cookies: body.cookies,
+      userAgent: body.userAgent,
     });
 
     if (body.dryRun) {
