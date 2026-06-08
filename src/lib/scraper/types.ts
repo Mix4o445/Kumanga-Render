@@ -43,6 +43,8 @@ export interface ScraperOptions {
   userAgent?: string;
   /** Set of slugs to skip (already exist in store) */
   skipExistingSlugs?: Set<string>;
+  /** Max manga to scrape per run (default: 0 = no limit). Use to stay within Vercel Hobby 10s timeout. */
+  maxManga?: number;
 }
 
 export interface ScrapeResult {

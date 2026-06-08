@@ -540,6 +540,7 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
     cookies,
     userAgent,
     skipExistingSlugs,
+    maxManga = 0,
   } = options;
 
   const headers: Record<string, string> | undefined = userAgent
@@ -615,6 +616,12 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
     });
     const skipped = before - mangaEntries.length;
     if (skipped > 0) console.log(`  ⏭️  Skipped ${skipped} existing manga`);
+  }
+
+  // Limit total manga to scrape per run (stay within Vercel 10s timeout)
+  if (maxManga > 0 && mangaEntries.length > maxManga) {
+    console.log(`  ⏱️  Limiting to ${maxManga} manga (${mangaEntries.length} discovered)`);
+    mangaEntries = mangaEntries.slice(0, maxManga);
   }
 
   // Scrape each manga detail page

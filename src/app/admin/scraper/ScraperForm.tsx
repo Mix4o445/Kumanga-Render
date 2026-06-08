@@ -43,6 +43,7 @@ export function ScraperForm() {
   const [concurrency, setConcurrency] = useState("3");
   const [delay, setDelay] = useState("1500");
   const [listPath, setListPath] = useState("/manga/");
+  const [maxManga, setMaxManga] = useState("10");
   const [scrapeImages, setScrapeImages] = useState(false);
   const [dryRun, setDryRun] = useState(false);
   const [autoApprove, setAutoApprove] = useState(true);
@@ -68,8 +69,9 @@ export function ScraperForm() {
         body: JSON.stringify({
           url: url.trim(),
           pages: parseInt(pages) || 1,
+          maxManga: parseInt(maxManga) || 10,
           concurrency: parseInt(concurrency) || 3,
-          delay: parseInt(delay) || 1500,
+          delay: parseInt(delay) || 500,
           listPath: listPath || "/manga/",
           images: scrapeImages,
           dryRun,
@@ -78,7 +80,14 @@ export function ScraperForm() {
           userAgent: userAgent || undefined,
         }),
       });
-      const data = await res.json();
+      let data: ScrapeResult;
+      try {
+        data = await res.json();
+      } catch {
+        const text = await res.text();
+        setError(`الخادم أعاد استجابة غير JSON (HTTP ${res.status}): ${text.slice(0, 200)}`);
+        return;
+      }
       if (!res.ok) {
         setError(data.error || `HTTP ${res.status}`);
       } else {
@@ -122,6 +131,15 @@ export function ScraperForm() {
 
           <Field label="مسار القائمة" hint="مثل: /manga/">
             <input value={listPath} onChange={(e) => setListPath(e.target.value)} className={inputClass} placeholder="/manga/" />
+          </Field>
+
+          <Field label="حد المانجا" hint="0 = غير محدود (خطر قطع الاتصال)">
+            <input
+              value={maxManga}
+              onChange={(e) => setMaxManga(e.target.value)}
+              className={inputClass}
+              placeholder="10"
+            />
           </Field>
 
           <div className="flex items-end gap-4">

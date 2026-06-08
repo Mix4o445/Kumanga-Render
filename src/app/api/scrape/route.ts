@@ -13,6 +13,7 @@ interface ScrapeRequest {
   images?: boolean;
   delay?: number;
   listPath?: string;
+  maxManga?: number;
   dryRun?: boolean;
   autoApprove?: boolean;
   overwrite?: boolean;
@@ -48,9 +49,10 @@ export async function POST(req: Request) {
       baseUrl: body.url,
       maxPages: body.pages ?? 1,
       skipExistingSlugs: existingSlugs,
+      maxManga: body.maxManga ?? 10,
       concurrency: body.concurrency ?? 3,
       scrapeChapterPages: body.images ?? false,
-      delay: body.delay ?? 1500,
+      delay: body.delay ?? 500,
       listPath: body.listPath ?? "/manga/",
       cookies: body.cookies,
       userAgent: body.userAgent,
