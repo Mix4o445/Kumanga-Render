@@ -58,6 +58,35 @@ function cleanText($el: any): string {
 }
 
 /**
+ * Extract manga URLs from a WordPress sitemap (fallback for JS-rendered listing pages).
+ */
+export async function extractMangaUrlsFromSitemap(
+  baseUrl: string,
+): Promise<{ url: string; title: string }[]> {
+  const sitemapPaths = ["/wp-sitemap.xml", "/sitemap.xml", "/sitemap_index.xml"];
+  for (const path of sitemapPaths) {
+    try {
+      const res = await fetch(`${baseUrl}${path}`, { headers: DEFAULT_HEADERS });
+      if (!res.ok) continue;
+      const text = await res.text();
+      const slugs = new Set<string>();
+      const regex = new RegExp(`${baseUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/manga/([^/<]+)`, "g");
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        if (match[1]) slugs.add(match[1]);
+      }
+      if (slugs.size > 0) {
+        return Array.from(slugs).map((slug) => ({
+          url: `${baseUrl}/manga/${slug}/`,
+          title: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        }));
+      }
+    } catch { /* try next */ }
+  }
+  return [];
+}
+
+/**
  * Extract manga URLs from a listing page.
  * Supports the common Madara listing layouts.
  */
@@ -292,6 +321,9 @@ export async function scrapeMangaDetail(
   const cover =
     $(".summary_image img, .wp-manga-cover img, .thumb img").first().attr("data-src")
     || $(".summary_image img, .wp-manga-cover img, .thumb img").first().attr("src")
+    // WP Fire fallback
+    || $(".detail-bg img").first().attr("data-src")
+    || $(".detail-bg img").first().attr("src")
     || "";
 
   let synopsis = "";
@@ -299,24 +331,55 @@ export async function scrapeMangaDetail(
   if (synSel.length) {
     synopsis = synSel.map((_, el) => cleanText($(el))).get().filter(Boolean).join("\n\n");
   }
+  // WP Fire fallback
+  if (!synopsis) {
+    synopsis = cleanText($(".description"));
+  }
 
+  const sidebarText = cleanText($(".sidebar"));
   const genres: string[] = [];
   $(".genres-content a, a[href*='/genre/'], .manga-genre a").each((_, el) => {
     const g = cleanText($(el));
     if (g) genres.push(g);
   });
+  // WP Fire fallback: genres from sidebar "التصنيفات:"
+  if (genres.length === 0 && sidebarText) {
+    const gMatch = sidebarText.match(/التصنيفات:\s*([^\n]+)/);
+    if (gMatch) {
+      genres.push(...gMatch[1].split(",").map((s: string) => s.trim()).filter(Boolean));
+    }
+  }
 
-  const author = cleanText($(".author-content a, .artist-content a").first()) || undefined;
+  let author = cleanText($(".author-content a, .artist-content a").first()) || undefined;
+  // WP Fire fallback
+  if (!author && sidebarText) {
+    const aMatch = sidebarText.match(/المؤلف:\s*([^\n]+)/);
+    if (aMatch) author = aMatch[1].trim();
+  }
 
-  const statusText = cleanText(
+  let statusText = cleanText(
     $(".post-status .status-content, .summary-content:contains('Status') .summary-content-value, .post-status_item:contains('Status') .summary-content"),
   ) || cleanText($(".post-status"));
+  // WP Fire fallback: status is the text right before the title
+  if (!statusText) {
+    const mangaDetail = cleanText($(".manga-detail"));
+    if (mangaDetail) {
+      const sMatch = mangaDetail.match(/^(مستمر|مكتملة|متوقفة|ملغاة)/);
+      if (sMatch) statusText = sMatch[1];
+    }
+  }
   const status = parseStatus(statusText);
 
+  let year: number | undefined;
   const yearText = cleanText(
     $(".summary-content:contains('Year') .summary-content-value, .post-status_item:contains('Year') .summary-content"),
   );
-  const year = parseYear(yearText);
+  if (yearText) year = parseYear(yearText);
+  // WP Fire fallback
+  if (!year && sidebarText) {
+    const yMatch = sidebarText.match(/سنة الصدور:\s*(\d{4})/);
+    if (yMatch) year = parseInt(yMatch[1]);
+  }
 
   const altTitles: string[] = [];
   $(".alternative, .post-content_item:contains('Alternative') .summary-content, .alternative-font a").each((_, el) => {
@@ -531,6 +594,16 @@ export async function scrapeMadara(options: ScraperOptions): Promise<ScrapeResul
   }
 
   console.log(`\n📚 Total manga discovered: ${mangaEntries.length}`);
+
+  // Fallback: if no manga found via listing pages, try the sitemap (JS-rendered sites)
+  if (mangaEntries.length === 0) {
+    console.log(`  ⚠️  No manga found on listing pages, trying sitemap...`);
+    const sitemapEntries = await extractMangaUrlsFromSitemap(base);
+    if (sitemapEntries.length > 0) {
+      console.log(`  ✅ Found ${sitemapEntries.length} manga via sitemap`);
+      mangaEntries.push(...sitemapEntries);
+    }
+  }
 
   // Scrape each manga detail page
   console.log(`\n🔎 Scraping manga details (concurrency: ${concurrency})...`);
