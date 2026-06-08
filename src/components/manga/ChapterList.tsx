@@ -1,5 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { BookOpen, ChevronLeft, Inbox, Pencil, UserRound } from "lucide-react";
+import { BookOpen, ChevronLeft, Inbox, Pencil, UserRound, ArrowDownUp } from "lucide-react";
 import type { Chapter } from "@/types";
 import { formatChapterLabel, formatRelativeTime } from "@/lib/utils";
 import { deleteChapterAction } from "@/lib/actions";
@@ -40,6 +43,13 @@ export function ChapterList({
     ? chapters.map((c) => ({ rep: c, count: 1 }))
     : groups;
   const distinctCount = byNumber.size;
+
+  // Reading order toggle: newest chapter first (default) or oldest first.
+  const [order, setOrder] = useState<"newest" | "oldest">("newest");
+  const orderedRows =
+    order === "newest"
+      ? rows
+      : [...rows].sort((a, b) => a.rep.number - b.rep.number);
   return (
     <section id="chapters" className="scroll-mt-24">
       <div className="mb-5 flex items-center justify-between gap-4">
@@ -49,9 +59,21 @@ export function ChapterList({
           </span>
           <h2 className="text-lg font-bold tracking-tight text-fg">الفصول</h2>
         </div>
-        <span className="text-sm text-fg-faint">
-          {distinctCount.toLocaleString("ar")} فصل
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-fg-faint">
+            {distinctCount.toLocaleString("ar")} فصل
+          </span>
+          {distinctCount > 1 ? (
+            <button
+              type="button"
+              onClick={() => setOrder((o) => (o === "newest" ? "oldest" : "newest"))}
+              className="inline-flex items-center gap-1.5 rounded-pill border border-line bg-overlay px-3 py-1.5 text-xs font-semibold text-fg-muted transition-colors hover:border-line-strong hover:text-fg active:scale-95"
+            >
+              <ArrowDownUp className="size-3.5" aria-hidden />
+              {order === "newest" ? "الأحدث أولًا" : "الأقدم أولًا"}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {chapters.length === 0 ? (
@@ -66,7 +88,7 @@ export function ChapterList({
         </div>
       ) : (
         <ol className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface-raised/40">
-          {rows.map(({ rep: chapter, count }) => (
+          {orderedRows.map(({ rep: chapter, count }) => (
             <li key={chapter.id} className="flex items-center">
               <div className="min-w-0 flex-1">
               <Link

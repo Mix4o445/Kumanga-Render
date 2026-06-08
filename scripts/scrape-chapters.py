@@ -57,7 +57,7 @@ def fetch(url: str, retries: int = 3) -> str:
     raise RuntimeError("unreachable")
 
 
-def extract_chapters(html: str, base_url: str) -> list[dict]:
+def extract_chapters(html: str, base_url: str, manga_slug: str = "") -> list[dict]:
     """Extract chapter list from a Madara manga detail page."""
     soup = BeautifulSoup(html, "lxml")
     chapters: list[dict] = []
@@ -92,12 +92,67 @@ def extract_chapters(html: str, base_url: str) -> list[dict]:
 
                 full_url = href if href.startswith("http") else urljoin(base_url, href)
 
+                # Clean title: strip "الفصل N:" prefix and trailing metadata
+                title = re.sub(r"^(?:الفصل\s*(?:الخاص\s*)?|Chapter|Ch\.?)\s*[\d.]*\s*[:/\-]?\s*", "", text, flags=re.I).strip()
+                if re.match(r"^[a-z/]", title):
+                    title = None
+                else:
+                    # Remove trailing English (translator name) + Arabic date
+                    title = re.sub(r"[a-z][\w.]+[\u0600-\u06FF].*$", "", title, flags=re.I).strip()
+                    # Remove standalone trailing date
+                    title = re.sub(r"[/:,]?\s*[\u0600-\u06FF]+\s*\d+,?\s*\d*$", "", title).strip()
+                    title = re.sub(r"\s+", " ", title).strip() or None
+
                 chapters.append({
                     "number": number,
-                    "title": text or None,
+                    "title": title,
                     "url": full_url,
                 })
             break  # first matching selector wins
+
+    # Fallback: extract chapter links from #manga-page (non-standard themes)
+    if not chapters:
+        manga_page = soup.find(id="manga-page")
+        if manga_page and manga_slug:
+            for a in manga_page.find_all("a"):
+                href = a.get("href", "").strip()
+                if not href or href in seen:
+                    continue
+                # Only include links for this manga
+                if not manga_slug or manga_slug not in href:
+                    continue
+                if "/manga/" not in href:
+                    continue
+                text = a.get_text(strip=True)
+                if not text:
+                    continue
+                # Skip non-chapter links
+                if not re.search(r"(الفصل|Chapter|ch\.?\s*\d)", text, re.I):
+                    continue
+                # Extract chapter number from text or URL
+                num_match = re.search(r"(?:الفصل|Chapter|Ch\.?)\s*([\d.]+)", text, re.I)
+                if not num_match:
+                    num_match = re.search(r"/([\d.]+)(?:-1)?/?$", href.rstrip("/"))
+                if not num_match:
+                    continue
+                number = float(num_match.group(1))
+                # Clean title: strip "الفصل N:" prefix and trailing metadata
+                title = re.sub(r"^(?:الفصل\s*(?:الخاص\s*)?|Chapter|Ch\.?)\s*[\d.]*\s*[:/\-]?\s*", "", text, flags=re.I).strip()
+                if re.match(r"^[a-z/]", title):
+                    title = None
+                else:
+                    # Remove trailing English (translator name) + Arabic date
+                    title = re.sub(r"[a-z][\w.]+[\u0600-\u06FF].*$", "", title, flags=re.I).strip()
+                    # Remove standalone trailing date
+                    title = re.sub(r"[/:,]?\s*[\u0600-\u06FF]+\s*\d+,?\s*\d*$", "", title).strip()
+                    title = re.sub(r"\s+", " ", title).strip() or None
+                full_url = href if href.startswith("http") else urljoin(base_url, href)
+                chapters.append({
+                    "number": number,
+                    "title": title or None,
+                    "url": full_url,
+                })
+                seen.add(href)
 
     chapters.sort(key=lambda c: c["number"])
     return chapters
@@ -119,6 +174,9 @@ def extract_chapter_pages(html: str, chapter_url: str) -> list[str]:
         "div.text-center img",
         ".wp-manga-chapter-img",
         ".entry-content img",
+        "#ch-images img",
+        ".pages img",
+        ".preload-image",
     ]
 
     for sel in img_selectors:
@@ -151,9 +209,12 @@ def scrape_chapters(
         raise ValueError("Invalid URL")
     base_url = base_url.group(1)
 
+    manga_slug_match = re.search(r"/manga/([^/]+)", manga_url)
+    manga_slug = manga_slug_match.group(1) if manga_slug_match else ""
+
     print(f"🔍 Fetching manga page: {manga_url}", file=sys.stderr)
     html = fetch(manga_url)
-    chapters = extract_chapters(html, base_url)
+    chapters = extract_chapters(html, base_url, manga_slug)
     print(f"📚 Found {len(chapters)} chapters", file=sys.stderr)
 
     if scrape_images and chapters:
